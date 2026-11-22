@@ -327,11 +327,35 @@ const cat = id => BANK.find(c => c.id === id);
 const curList = () => { const o = S.order[S.qi]; return cat(o.c).lists[o.l]; };
 const ansName = a => Array.isArray(a) ? a[0] : a;
 const ansAll  = a => Array.isArray(a) ? a : [a];
-// توحيد الكتابة العربية للمقارنة: همزات، تاء مربوطة، ال التعريف، تشكيل، مسافات
-const norm = s => String(s).toLowerCase().replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
-  .replace(/[ً-ْـ]/g, "").replace(/[أإآٱ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي")
-  .replace(/ؤ/g, "و").replace(/ئ/g, "ي").replace(/[^\p{L}\p{N}\s]/gu, "")
-  .split(/\s+/).filter(Boolean).map(w => { while(w.startsWith("ال") && w.length >= 5) w = w.slice(2); return w; }).join("");
+// توحيد الكتابة العربية للمقارنة: همزات، تاء مربوطة، ال التعريف، تشكيل، مسافات،
+// وعبارات التوقير، والكتابات الشائعة (ق/غ/ج، تش/ش، الحروف المكررة، عبدال ملزوقة، ابن/بن، «م» بعد السنة).
+// أي تغيير هني لازم ينفحص على البنك كله: ما يصير جوابين في نفس السؤال يتطابقون.
+const HONOR = /(عليه|عليها|عليهما|عليهم)\s*السلام|صلي\s*الله\s*عليه(\s*و\s*اله)?(\s*و\s*سلم)?|عجل\s*الله(\s*تعالي)?\s*فرجه(\s*الشريف)?|\(\s*(ع|ص|عج)\s*\)/g;
+const norm = s => String(s).toLowerCase()
+  .replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
+  .replace(/[ً-ْٰـ]/g, "").replace(/[أإآٱ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي")
+  .replace(/ؤ/g, "و").replace(/ئ/g, "ي").replace(/ء/g, "")
+  .replace(/ک/g, "ك").replace(/ی/g, "ي").replace(/[گچ]/g, "ج").replace(/پ/g, "ب")
+  .replace(HONOR, " ")
+  .replace(/(\d{4})\s*[مه](?=\s|$)/g, "$1")
+  .replace(/[^\p{L}\p{N}\s]/gu, " ")
+  .replace(/(^|\s)(عبد|ابو|ذو)ال(?=\S)/g, "$1$2 ال")
+  .split(/\s+/).filter(Boolean).map(w => {
+    if(w === "ابن") w = "بن";
+    while(w.startsWith("ال") && w.length >= 5) w = w.slice(2);
+    if(w.length >= 4) w = w.replace(/[غق]/g, "ج");
+    return w.replace(/تش/g, "ش").replace(/(\p{L})\1+/gu, "$1");
+  }).join("");
+// كلمة الصنف في أول الجواب («سورة البقرة»، «مسرحية …»، «سنة ١٩٩٠») تنقبل: الفئة تحدد كلماتها في pre.
+function cands(text){
+  const out = [norm(text)], w = String(text).trim().split(/\s+/);
+  if(w.length > 1){
+    const c = S.order && S.order[S.qi] ? cat(S.order[S.qi].c) : null, first = norm(w[0]), rest = norm(w.slice(1).join(" "));
+    if(c && (c.pre || []).map(norm).includes(first)) out.push(rest);
+    else if(["سنه", "عام"].includes(first) && /^\d+$/.test(rest)) out.push(rest);
+  }
+  return out.filter(Boolean);
+}
 
 /* ===================== الشاشات ===================== */
 function render(){
@@ -614,11 +638,12 @@ function timeout(){
   nextTurn();
 }
 function submit(text){
-  const q = S.q, L = curList(), n = norm(text);
-  if(!n) return;
-  const i = L.a.findIndex(a => ansAll(a).some(x => norm(x) === n));
+  const q = S.q, L = curList(), ns = cands(text);
+  if(!ns.length) return;
+  const hit = a => ansAll(a).some(x => ns.includes(norm(x)));
+  const i = L.a.findIndex(hit);
   if(i < 0){
-    const ti = hasTraps(L) ? L.x.findIndex(a => ansAll(a).some(x => norm(x) === n)) : -1;
+    const ti = hasTraps(L) ? L.x.findIndex(hit) : -1;
     return miss(`«${text.trim()}» غلط`, ti >= 0 ? ti : undefined);
   }
   if(q.got[i] !== undefined){ msg = { k:"no", t:`«${ansName(L.a[i])}» انكشف قبل — جرّب غيره` }; return; }
