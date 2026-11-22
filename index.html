@@ -479,10 +479,12 @@ function viewQuestion(){
     <div class="row center tools">
       ${live && refOn() ? `
         <button class="btn ghost sm ${showQR ? "on" : ""}" data-act="qr">كود الحكم</button>
+        <button class="btn ghost sm" data-act="swap">بدّل الدور</button>
         <button class="btn ghost sm" data-act="endq">اكشف الباقي</button>`
       : live ? `
         <button class="btn ghost sm ${peek ? "on" : ""}" data-act="peek">وضع الحكم${peek ? " (اضغط الجواب الصح)" : ""}</button>
         <button class="btn ghost sm" data-act="wrong">✗ جواب غلط</button>
+        <button class="btn ghost sm" data-act="swap">بدّل الدور</button>
         <button class="btn ghost sm" data-act="endq">اكشف الباقي</button>`
       : `<button class="btn" data-act="next">${S.qi + 1 < S.order.length ? "السؤال التالي" : "النتيجة النهائية"}</button>`}
     </div>
@@ -553,6 +555,12 @@ function nextTurn(risk){
   const q = S.q;
   q.dbl = false; q.risk = !!risk; q.turn = 1 - q.turn;
   startTimer();
+}
+// تغيير الدور يدوياً (من الشاشة أو من جوال الحكم): الدور يروح للفريق الثاني بوقت جديد، بدون خصم.
+function swapTurn(){
+  const q = S.q; if(!q || q.over) return;
+  nextTurn();
+  msg = { k:"", t:`الدور صار لـ ${S.names[q.turn]}` };
 }
 function award(i){
   const q = S.q, L = curList(), pts = (i + 1) * STEP;
@@ -666,6 +674,7 @@ function applyCmd(c){
   else if(c.t === "wrong") miss("الحكم حسبها غلط");
   else if(c.t === "trap" && Number.isInteger(c.i) && hasTraps(curList()) && c.i >= 0 && c.i < curList().x.length && !(q.traps && q.traps[c.i])) miss("", c.i);
   else if(c.t === "endq") endQuestion();
+  else if(c.t === "swap") swapTurn();
   else if(c.t === "life" && ["hint", "pass", "dbl"].includes(c.k)) useLife(c.k);
 }
 // يجيب عنوان ومفتاح الحكم من السيرفر. لو السيرفر انعاد تشغيله (مفتاح جديد) أو تغيّرت الشبكة (عنوان جديد) يتحدّث الكود لحاله.
@@ -741,7 +750,8 @@ function refApp(){
       <div class="bar">${st.over
         ? `<button class="btn" style="grid-column:1/-1" data-r='{"t":"next"}'>${st.qi + 1 < st.total ? "السؤال التالي " : "النتيجة النهائية "}</button>`
         : `<button class="wrongbtn" data-r='{"t":"wrong"}'>✗ غلط${st.trap ? " (−" + fmt(st.trap) + ")" : (st.traps || []).length ? " (بدون خصم)" : ""}</button>
-           <button class="btn ghost" data-r='{"t":"endq"}'>اكشف الباقي</button>`}</div>
+           <button class="btn ghost" data-r='{"t":"endq"}'>اكشف الباقي</button>
+           <button class="btn ghost" style="grid-column:1/-1" data-r='{"t":"swap"}'>بدّل الدور</button>`}</div>
     </div>`;
   }
   async function pull(){
@@ -790,6 +800,7 @@ $app.addEventListener("click", e => {
   else if(d.act === "peek") peek = !peek;
   else if(d.act === "wrong") miss("الحكم حسبها غلط");
   else if(d.act === "endq") endQuestion();
+  else if(d.act === "swap") swapTurn();
   else if(d.act === "qr") showQR = !showQR;
   else if(d.act === "next") advance();
   else if(d.act === "quit"){ if(!confirm("تبون تنهون الجولة وتشوفون النتيجة؟")) return; stopTimer(); S.screen = "end"; }
