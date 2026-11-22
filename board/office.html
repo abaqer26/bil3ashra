@@ -1,0 +1,348 @@
+<title>مكتب تحدّي الربع</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Readex+Pro:wght@400;600;700&display=swap">
+<style>
+/* Layout: one column that leads with what waits on the owner, then team | tasks | log side by side on wide screens. */
+:root{
+  color-scheme:dark;
+  --bg:#14113A; --card:#231F58; --card2:#2E2970; --line:#3B3585;
+  --fg:#F5F3FF; --muted:#B4AEE0; --pulse:#3DDC97; --pulse-soft:rgba(61,220,151,.14);
+  --btn:#6643F2; --violet:#A592FF; --violet-soft:rgba(165,146,255,.16);
+  --warn:#FFC76B; --warn-soft:rgba(255,199,107,.14);
+  --head:"Lalezar","Readex Pro","Geeza Pro",sans-serif;
+  --body:"Readex Pro","Geeza Pro","Segoe UI",Tahoma,sans-serif;
+}
+*{box-sizing:border-box}
+html{direction:rtl}
+body{background:radial-gradient(1000px 520px at 50% -10%,rgba(102,67,242,.32) 0%,transparent 65%) fixed,var(--bg);
+  color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.7;
+  padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:18px}
+h1,h2{font-family:var(--head);font-weight:400;margin:0;text-wrap:balance}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header svg{width:46px;height:46px;flex:none}
+h1{font-size:34px;line-height:1.2}
+h1 em{font-style:normal;color:var(--pulse)}
+.sub{color:var(--muted);font-size:13px}
+.sync{margin-inline-start:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.dot.live{background:var(--pulse);box-shadow:0 0 0 4px var(--pulse-soft)}
+.dot.busy{background:var(--warn)}
+h2{font-size:22px;display:flex;align-items:baseline;gap:10px}
+h2 .n{font-family:var(--body);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+section{display:grid;gap:12px;min-width:0;align-content:start}
+.empty{color:var(--muted);border:1px dashed var(--line);border-radius:14px;padding:14px 16px}
+
+/* waiting on the owner */
+.wait{border:2px solid var(--pulse);background:var(--pulse-soft);border-radius:20px;padding:18px}
+.wait h2{color:var(--pulse)}
+.need{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:8px}
+.need b{font-size:16px}
+.need .meta{color:var(--muted);font-size:13px}
+.need form{display:flex;gap:8px;flex-wrap:wrap}
+.need input{flex:1;min-width:0;font:inherit;color:var(--fg);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:8px 12px}
+button{font:inherit;font-weight:600;cursor:pointer;border:0;border-radius:10px;padding:8px 16px;background:var(--btn);color:#fff}
+button:disabled{opacity:.45;cursor:default}
+:focus-visible{outline:2px solid var(--pulse);outline-offset:2px}
+.done-needs summary{cursor:pointer;color:var(--muted);font-size:13px}
+.done-needs .need{margin-top:8px;opacity:.75}
+.err{color:var(--warn);font-size:13px}
+
+/* live pixel office */
+.office-wrap{position:relative;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--bg)}
+#office{display:block;width:100%;aspect-ratio:16/9;image-rendering:pixelated;image-rendering:crisp-edges}
+.room{position:absolute;display:flex;flex-direction:column;justify-content:space-between;padding:1.2% 1.4%;pointer-events:none;min-width:0}
+.room .tag{display:flex;flex-direction:column;line-height:1.35;min-width:0}
+.room .tag b{font-family:var(--head);font-weight:400;font-size:clamp(11px,1.5vw,19px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.room .tag span{font-size:clamp(9px,1.05vw,13px);color:var(--pulse);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.room .say{align-self:flex-start;max-width:100%;background:var(--fg);color:var(--bg);border-radius:8px;padding:2px 8px;font-size:clamp(9px,1vw,12.5px);
+  line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.legend{display:flex;gap:6px 18px;flex-wrap:wrap;color:var(--muted);font-size:13px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:-1px}
+@media (max-width:640px){.room .say{display:none}}
+
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr) minmax(0,1fr);gap:18px}
+@media (max-width:900px){.cols{grid-template-columns:minmax(0,1fr)}}
+
+/* team */
+.person{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:6px}
+.person .top{display:flex;align-items:center;gap:8px}
+.person .nm{font-weight:700}
+.pill{font-size:12px;border-radius:99px;padding:1px 10px;background:var(--card2);color:var(--muted);white-space:nowrap}
+.pill.working{background:var(--pulse-soft);color:var(--pulse)}
+.pill.blocked,.pill.waiting{background:var(--warn-soft);color:var(--warn)}
+.pill.review,.pill.doing{background:var(--violet-soft);color:var(--violet)}
+.pill.done{background:var(--pulse-soft);color:var(--pulse)}
+.person .lv{margin-inline-start:auto;font-family:var(--head);color:var(--pulse);font-size:17px}
+.person .doing{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.bar{height:6px;border-radius:99px;background:var(--card2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--pulse);border-radius:99px}
+.xp{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;justify-content:space-between}
+
+/* tasks */
+.group{display:grid;gap:8px}
+.group h3{margin:0;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.task{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;display:flex;gap:10px;align-items:flex-start}
+.task .t{flex:1;min-width:0;overflow-wrap:anywhere}
+.task .meta{color:var(--muted);font-size:12px}
+
+/* log */
+.log{display:grid;gap:0;border-inline-start:2px solid var(--line);padding-inline-start:14px}
+.ev{padding:6px 0;position:relative}
+.ev::before{content:"";position:absolute;inset-inline-start:-19px;top:15px;width:8px;height:8px;border-radius:50%;background:var(--pulse)}
+.ev .meta{color:var(--muted);font-size:12px}
+.ev .tx{overflow-wrap:anywhere}
+footer{color:var(--muted);font-size:13px;text-align:center;direction:ltr}
+</style>
+
+<div class="wrap">
+  <header>
+    <svg viewBox="0 0 200 200" aria-hidden="true"><path d="M30 170 L100 34 L170 170" fill="none" stroke="#F5F3FF" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path d="M46 126 H76 L88 104 L102 150 L114 116 L122 126 H154" fill="none" stroke="#3DDC97" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div>
+      <h1>مكتب <em>تحدّي الربع</em></h1>
+      <div class="sub">لوحة الشركة: منو يشتغل على شنو، وشنو ينتظر قرارك</div>
+    </div>
+    <div class="sync"><span class="dot" id="dot"></span><span id="sync">جاري الاتصال…</span></div>
+  </header>
+
+  <section class="wait" aria-labelledby="h-wait">
+    <h2 id="h-wait">ينتظرك <span class="n" id="n-needs"></span></h2>
+    <div id="needs" style="display:grid;gap:10px"><div class="empty">هني يطلع كل شي يحتاج قرار أو موافقة منك. الأقسام تضيفه، وأنت ترد عليه من نفس الخانة.</div></div>
+    <details class="done-needs" id="done-wrap" hidden><summary id="done-sum"></summary><div id="done-needs"></div></details>
+  </section>
+
+  <section aria-labelledby="h-office">
+    <h2 id="h-office">المكتب الحي</h2>
+    <div class="office-wrap">
+      <canvas id="office" width="960" height="540" role="img" aria-label="رسم للمكتب: غرفة المدير التنفيذي فوق، وتحتها غرف الأسئلة وتدقيق الأجوبة والتطوير. لمبة كل غرفة تبيّن حالة الموظف."></canvas>
+      <div id="rooms"></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--pulse)"></i>اللمبة خضرا: يشتغل</span>
+      <span><i style="background:var(--warn)"></i>صفرا: ينتظر أو متوقف</span>
+      <span><i style="background:var(--line)"></i>مطفية: فاضي</span>
+      <span>اللي يخلّص شغله يمشي يسلّمه للمدير</span>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section aria-labelledby="h-staff">
+      <h2 id="h-staff">الفريق <span class="n" id="n-staff"></span></h2>
+      <div id="staff" style="display:grid;gap:10px"><div class="empty">كل قسم يطلع هني بحالته ومستواه أول ما يسجّل حضوره.</div></div>
+    </section>
+    <section aria-labelledby="h-tasks">
+      <h2 id="h-tasks">المهام <span class="n" id="n-tasks"></span></h2>
+      <div id="tasks" style="display:grid;gap:14px"><div class="empty">المهام تنضاف هني مقسّمة: شغّال، مراجعة، قادم، متوقف، وخلص.</div></div>
+    </section>
+    <section aria-labelledby="h-log">
+      <h2 id="h-log">آخر الأحداث</h2>
+      <div id="events"><div class="empty">سجل الشغل: كل قسم يكتب سطر لما يبدأ أو يخلّص شي.</div></div>
+    </section>
+  </div>
+  <footer>@abaqer_tech</footer>
+</div>
+
+<script>
+const LEVELS = [0, 100, 250, 500, 900, 1400, 2000, 2800, 3800, 5000];   // نفس جدول team/levels.md
+const TITLES = ["متدرب","مبتدئ","موظف","متمكن","محترف","خبير","قائد","أستاذ","نخبة","أسطورة"];   // نفس ألقاب team/levels.md
+const STAFF_STATUS = { working:"يشتغل", idle:"فاضي", blocked:"متوقف", waiting:"ينتظر المالك" };
+const TASK_GROUPS = [["doing","شغّال الحين"],["review","بالمراجعة"],["todo","قادم"],["blocked","متوقف"],["done","خلص"]];
+const state = { staff:[], tasks:[], needs:[], events:[] };
+const drafts = {};
+let db = null, canWrite = true, busyNeed = null, needErr = {};
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = n => Number(n || 0).toLocaleString("ar-EG");
+function ago(iso){
+  const t = Date.parse(iso); if(!t) return "";
+  const m = Math.round((Date.now() - t) / 60000);
+  if(m < 1) return "الحين";
+  if(m < 60) return "قبل " + num(m) + " دقيقة";
+  if(m < 1440) return "قبل " + num(Math.round(m / 60)) + " ساعة";
+  return new Date(t).toLocaleDateString("ar-EG", { day:"numeric", month:"long" });
+}
+function levelOf(xp){ let l = 1; LEVELS.forEach((t, i) => { if(xp >= t) l = i + 1; }); return l; }
+
+function renderNeeds(){
+  const open = state.needs.filter(n => n.status !== "answered").sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  const done = state.needs.filter(n => n.status === "answered").sort((a, b) => String(b.answeredAt).localeCompare(String(a.answeredAt)));
+  const focused = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.draft : null;
+  $("n-needs").textContent = open.length ? num(open.length) : "";
+  $("needs").innerHTML = open.length ? open.map(n => `
+    <div class="need">
+      <b>${esc(n.title)}</b>
+      ${n.detail ? `<div>${esc(n.detail)}</div>` : ""}
+      <div class="meta">من: ${esc(n.from || "—")} · ${esc(ago(n.createdAt))}</div>
+      ${canWrite ? `<form data-need="${esc(n.id)}">
+        <input id="ans-${esc(n.id)}" data-draft="${esc(n.id)}" placeholder="ردّك أو قرارك…" value="${esc(drafts[n.id] || "")}" aria-label="الرد على: ${esc(n.title)}">
+        <button ${busyNeed === n.id ? "disabled" : ""}>${busyNeed === n.id ? "جاري الحفظ…" : "أرسل الرد"}</button>
+      </form>` : ""}
+      ${needErr[n.id] ? `<div class="err">${esc(needErr[n.id])}</div>` : ""}
+    </div>`).join("")
+    : `<div class="empty">ما في شي ينتظرك الحين. الفريق يكمل شغله.</div>`;
+  if(focused){ const el = document.querySelector(`[data-draft="${CSS.escape(focused)}"]`); if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }
+  $("done-wrap").hidden = !done.length;
+  $("done-sum").textContent = "رديت عليها (" + num(done.length) + ")";
+  $("done-needs").innerHTML = done.slice(0, 15).map(n => `
+    <div class="need"><b>${esc(n.title)}</b><div>ردّك: ${esc(n.answer)}</div><div class="meta">${esc(ago(n.answeredAt))}</div></div>`).join("");
+}
+function renderStaff(){
+  const list = [...state.staff].sort((a, b) => (a.order || 99) - (b.order || 99));
+  officeSync(list);
+  if(!list.length) return;
+  $("n-staff").textContent = num(list.length);
+  $("staff").innerHTML = list.map(p => {
+    const xp = Number(p.xp || 0), lv = levelOf(xp), lo = LEVELS[lv - 1], hi = LEVELS[lv];
+    const pct = hi ? Math.round((xp - lo) / (hi - lo) * 100) : 100;
+    return `<div class="person">
+      <div class="top"><span class="nm">${esc(p.name)}</span><span class="pill ${esc(p.status)}">${esc(STAFF_STATUS[p.status] || p.status || "")}</span><span class="lv">${TITLES[lv - 1]} · ${num(lv)}</span></div>
+      ${p.doing ? `<div class="doing">${esc(p.doing)}</div>` : ""}
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <div class="xp"><span>${num(xp)} XP</span><span>${hi ? "الجاي عند " + num(hi) : "أعلى مستوى"}</span></div>
+    </div>`;
+  }).join("");
+}
+function renderTasks(){
+  if(!state.tasks.length) return;
+  $("n-tasks").textContent = num(state.tasks.filter(t => t.status !== "done").length) + " مفتوحة";
+  $("tasks").innerHTML = TASK_GROUPS.map(([k, label]) => {
+    let items = state.tasks.filter(t => (t.status || "todo") === k).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+    if(!items.length) return "";
+    if(k === "done") items = items.slice(0, 8);
+    return `<div class="group"><h3>${label} (${num(items.length)})</h3>${items.map(t => `
+      <div class="task"><div class="t">${esc(t.title)}<div class="meta">${esc(t.dept || "")}${t.due ? " · التسليم " + esc(t.due) : ""}</div></div><span class="pill ${esc(k)}">${label}</span></div>`).join("")}</div>`;
+  }).join("");
+}
+function renderEvents(){
+  if(!state.events.length) return;
+  $("events").className = "log";
+  $("events").innerHTML = state.events.map(e => `
+    <div class="ev"><div class="tx">${esc(e.text)}</div><div class="meta">${esc(e.who || "")} · ${esc(ago(e.at))}</div></div>`).join("");
+}
+/* ================= المكتب الحي (بكسل) =================
+   لوحة منطقية ٣٢٠×١٨٠ تنرسم مكبّرة. الرسم في الكانفس، والأسماء والكلام فوقه كـ HTML عشان العربي ينقرا. */
+const OW = 320, OH = 180, CORR = 84;
+const ROOMS = { ceo:{ x:110, y:8, w:100, h:60 }, questions:{ x:8, y:100, w:96, h:72 }, qa:{ x:112, y:100, w:96, h:72 }, dev:{ x:216, y:100, w:96, h:72 } };
+const PAL = { bg:"#14113A", floor:"#231F58", floor2:"#2E2970", wall:"#3B3585", desk:"#14113A", fg:"#F5F3FF", pulse:"#3DDC97", violet:"#A592FF", warn:"#FFC76B", dim:"#3B3585" };
+const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const cv = $("office"), cx = cv.getContext("2d");
+const actors = {};
+let officeReady = false;
+const seat = id => { const r = ROOMS[id]; return { x:r.x + r.w / 2, y:r.y + r.h / 2 + 12 }; };
+const doorOf = id => { const r = ROOMS[id]; return id === "ceo" ? { x:r.x + r.w / 2, y:r.y + r.h + 8 } : { x:r.x + r.w / 2, y:r.y - 4 }; };
+
+function officeSync(list){
+  const html = [];
+  list.forEach(p => {
+    const r = ROOMS[p.id]; if(!r) return;
+    const a = actors[p.id] || (actors[p.id] = { ...seat(p.id), path:[], carry:false, status:p.status });
+    // خلّص شغله (كان يشتغل وصار غير كذا) ← يمشي يسلّم للمدير
+    if(officeReady && a.status === "working" && p.status !== "working" && p.id !== "ceo") deliver(p.id);
+    a.status = p.status;
+    const lv = levelOf(Number(p.xp || 0));
+    html.push(`<div class="room" style="left:${r.x / OW * 100}%;top:${r.y / OH * 100}%;width:${r.w / OW * 100}%;height:${r.h / OH * 100}%">
+      <div class="tag"><b>${esc(p.name)}</b><span>${TITLES[lv - 1]} · مستوى ${num(lv)}</span></div>
+      ${p.doing ? `<div class="say">${esc(p.doing)}</div>` : ""}</div>`);
+  });
+  $("rooms").innerHTML = html.join("");
+  if(list.length) officeReady = true;
+  if(reduced) drawOffice(0);
+}
+function deliver(id){
+  if(reduced) return;
+  const a = actors[id], d = doorOf(id), cd = doorOf("ceo"), ch = seat("ceo");
+  a.carry = true;
+  a.path = [d, { x:d.x, y:CORR }, { x:cd.x, y:CORR }, cd, { x:ch.x + 16, y:ch.y + 2 }, "drop", cd, { x:cd.x, y:CORR }, { x:d.x, y:CORR }, d, seat(id)];
+}
+function px(x, y, w, h, c){ cx.fillStyle = c; cx.fillRect(Math.round(x), Math.round(y), w, h); }
+function drawRoom(id, t){
+  const r = ROOMS[id], a = actors[id], st = a ? a.status : "", d = doorOf(id);
+  px(r.x, r.y, r.w, r.h, PAL.wall); px(r.x + 2, r.y + 2, r.w - 4, r.h - 4, PAL.floor2);
+  for(let i = 0; i < r.w - 4; i += 12) px(r.x + 2 + i, r.y + 2, 1, r.h - 4, PAL.floor);            // بلاط
+  px(d.x - 7, id === "ceo" ? r.y + r.h - 2 : r.y, 14, 2, PAL.floor2);                                 // الباب
+  const s = seat(id);
+  px(s.x - 18, s.y - 22, 36, 9, PAL.desk); px(s.x - 16, s.y - 13, 3, 5, PAL.desk); px(s.x + 13, s.y - 13, 3, 5, PAL.desk);   // المكتب
+  const on = st === "working", glow = on ? (reduced ? 1 : .65 + .35 * Math.sin(t / 260)) : 0;
+  px(s.x - 6, s.y - 30, 12, 8, PAL.wall); cx.globalAlpha = on ? glow : 1; px(s.x - 5, s.y - 29, 10, 6, on ? PAL.pulse : PAL.bg); cx.globalAlpha = 1;   // الشاشة
+  px(r.x + 8, r.y + r.h - 14, 5, 8, PAL.wall); px(r.x + 6, r.y + r.h - 20, 9, 7, "#2a9d6f");          // نبتة
+  // اللمبة
+  const lx = r.x + r.w - 12, ly = r.y + 9;
+  const blink = st === "blocked" && !reduced ? Math.sin(t / 220) > 0 : true;
+  const col = on ? PAL.pulse : (st === "waiting" || st === "blocked") && blink ? PAL.warn : PAL.dim;
+  if(col !== PAL.dim){ cx.globalAlpha = .18; px(lx - 6, ly - 6, 12, 12, col); cx.globalAlpha = .3; px(lx - 4, ly - 4, 8, 8, col); cx.globalAlpha = 1; }
+  px(lx - 2, ly - 2, 4, 4, col); px(lx - 1, ly - 6, 2, 4, PAL.wall);
+}
+function drawActor(id, t){
+  const a = actors[id]; if(!a) return;
+  const moving = a.path.length > 0, bob = !reduced && !moving && a.status === "working" ? Math.round(Math.sin(t / 180)) : 0;
+  const step = moving ? Math.floor(t / 120) % 2 : 0, c = id === "ceo" ? PAL.violet : PAL.fg, x = a.x, y = a.y + bob;
+  px(x - 1, y - 16, 2, 2, PAL.pulse); px(x - 4, y - 14, 8, 6, c); px(x - 3, y - 12, 2, 2, PAL.bg); px(x + 1, y - 12, 2, 2, PAL.bg);   // هوائي، راس، عيون
+  px(x - 5, y - 8, 10, 6, c); px(x - 2, y - 6, 4, 2, PAL.pulse);                                                                       // الجسم
+  px(x - 4, y - 2, 3, step ? 3 : 2, c); px(x + 1, y - 2, 3, step ? 2 : 3, c);                                                          // الرجلين
+  if(a.carry){ px(x + 6, y - 9, 5, 6, PAL.fg); px(x + 7, y - 7, 3, 1, PAL.pulse); }                                                    // الورقة
+}
+function stepActors(dt){
+  Object.values(actors).forEach(a => {
+    if(!a.path.length) return;
+    const tgt = a.path[0];
+    if(tgt === "drop"){ a.carry = false; a.path.shift(); return; }
+    const dx = tgt.x - a.x, dy = tgt.y - a.y, dist = Math.hypot(dx, dy), sp = 46 * dt;
+    if(dist <= sp){ a.x = tgt.x; a.y = tgt.y; a.path.shift(); } else { a.x += dx / dist * sp; a.y += dy / dist * sp; }
+  });
+}
+function drawOffice(t){
+  cx.setTransform(cv.width / OW, 0, 0, cv.height / OH, 0, 0); cx.imageSmoothingEnabled = false;
+  px(0, 0, OW, OH, PAL.bg);
+  px(0, CORR - 9, OW, 18, PAL.floor);                                                   // الممر
+  px(ROOMS.ceo.x + ROOMS.ceo.w / 2 - 7, ROOMS.ceo.y + ROOMS.ceo.h, 14, CORR - ROOMS.ceo.y - ROOMS.ceo.h, PAL.floor);
+  Object.keys(ROOMS).forEach(id => { if(id !== "ceo") px(doorOf(id).x - 7, CORR, 14, ROOMS[id].y - CORR, PAL.floor); });
+  for(let x = 6; x < OW; x += 16) px(x, CORR, 6, 1, PAL.wall);                          // خط الممر
+  Object.keys(ROOMS).forEach(id => drawRoom(id, t));
+  Object.keys(actors).sort((a, b) => actors[a].y - actors[b].y).forEach(id => drawActor(id, t));
+}
+let lastT = 0;
+function officeLoop(t){ stepActors(Math.min(.1, (t - lastT) / 1000)); lastT = t; drawOffice(t); requestAnimationFrame(officeLoop); }
+if(reduced) drawOffice(0); else requestAnimationFrame(officeLoop);
+
+const RENDER = { staff:renderStaff, tasks:renderTasks, needs:renderNeeds, events:renderEvents };
+
+function setSync(kind, text){ $("dot").className = "dot " + kind; $("sync").textContent = text; }
+
+document.addEventListener("input", e => { const k = e.target.dataset && e.target.dataset.draft; if(k) drafts[k] = e.target.value; });
+document.addEventListener("submit", async e => {
+  const id = e.target.dataset.need; if(!id) return;
+  e.preventDefault();
+  const answer = (drafts[id] || "").trim();
+  if(!answer || !db || busyNeed) return;
+  busyNeed = id; needErr[id] = ""; renderNeeds();
+  try{
+    await db.doc("needs/" + id).update({ status:"answered", answer, answeredAt:new Date().toISOString() });
+    delete drafts[id];
+  }catch(err){
+    if(err && err.code === "invalid_argument"){ canWrite = false; needErr[id] = "حسابك يقدر يقرا اللوحة بس، ما يقدر يرد."; }
+    else needErr[id] = "ما انحفظ الرد. جرّب مرة ثانية.";
+  }
+  busyNeed = null; renderNeeds();
+});
+
+(async () => {
+  db = window.claude && window.claude.use ? await window.claude.use("db") : null;
+  if(!db){ setSync("", "اللوحة مو متصلة بقاعدة البيانات في هذا العرض"); return; }
+  const user = await window.claude.use("user");
+  if(user && (await user.can("data.write")) === false) canWrite = false;
+  renderNeeds();
+  let pending = 4;
+  const slow = setTimeout(() => setSync("busy", "البيانات ما وصلت لسه، ممكن تكون قديمة"), 10000);
+  const sub = (key, query) => query.onSnapshot(snap => {
+    state[key] = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    RENDER[key]();
+    if(!snap.metadata.fromCache && pending > 0 && --pending === 0){ clearTimeout(slow); setSync("live", "متصلة وتتحدّث لحالها"); }
+  }, () => { clearTimeout(slow); setSync("busy", "انقطع الاتصال بالبيانات"); });
+  sub("needs", db.collection("needs"));
+  sub("staff", db.collection("staff"));
+  sub("tasks", db.collection("tasks"));
+  sub("events", db.collection("events").orderBy("at", "desc").limit(30));
+  setInterval(() => { renderNeeds(); renderEvents(); }, 60000);   // يحدّث «قبل كم دقيقة»
+})();
+</script>
