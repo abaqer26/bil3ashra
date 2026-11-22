@@ -101,6 +101,9 @@ input[type=text]{width:100%;font:inherit;font-weight:600;font-size:18px;color:va
 .slot .tx{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:800;font-size:18px;color:var(--muted);letter-spacing:3px}
 .slot .pt{font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums}
 .slot.trap{border-style:dashed}
+.slot.trapslot{border-style:dashed}
+.slot.trapslot .pt{color:var(--text)}
+.slot.trapslot.got .pt{color:var(--c,var(--text))}
 .slot.trap .n{background:var(--text);color:var(--bg)}
 .slot.trap .pt{color:var(--text)}
 .trapline{text-align:center;color:var(--muted);margin-top:10px;font-size:15px}
@@ -391,7 +394,7 @@ function viewSetup(){
         <ul class="rules">
           <li>كل سؤال له <b>١٠ أجوبة مخفية</b>. الجواب الأشهر نقاطه أقل، والأندر نقاطه أكثر.</li>
           <li>الفريقين <b>يتناوبون</b>، كل دور جواب واحد، لين تنكشف الأجوبة كلها.</li>
-          <li><b>الفخاخ:</b> كل سؤال وراه ${fmt(TRAPS.length)} أجوبة فخ: أجوبة تبيّن صح وهي غلط. اللي يقول واحد منها ينخصم منه ${fmt(TRAPS[0])} أو ${fmt(TRAPS[1])} أو ${fmt(TRAPS[2])}. الغلط العادي يروّح الدور بدون خصم.</li>
+          <li><b>الفخاخ:</b> بعد الأجوبة العشرة في ${fmt(TRAPS.length)} خانات فخ: رقم ١١ يخصم ${fmt(TRAPS[0])}، ورقم ١٢ يخصم ${fmt(TRAPS[1])}، ورقم ١٣ يخصم ${fmt(TRAPS[2])}. هذي أجوبة تبيّن صح وهي غلط. الغلط العادي يروّح الدور بدون خصم.</li>
           <li><b>تلميح</b> (${fmt(HINTS)} في الجولة): يعطيك معلومة عن أشهر جواب باقي، أو أول حرف منه وعدد حروفه. الجواب ما ينكشف، ولو جاوبته تاخذ نقاطه كاملة.</li>
           <li><b>باس</b> (مرة): ترمي الدور على الخصم بمخاطرة — لو غلط ينخصم منه ${fmt(PASS_RISK)}.</li>
           <li><b>جوابين</b> (مرة): تجاوب مرتين في نفس الدور.</li>
@@ -468,6 +471,12 @@ function viewQuestion(){
           ? `<div class="slot hinted"><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(hintFor(L, i))}</span><span class="pt">+${fmt(pts)}</span></div>`
           : `<div class="slot"><span class="n">${fmt(i + 1)}</span><span class="tx">؟ ؟ ؟ ؟</span><span class="pt">+${fmt(pts)}</span></div>`;
       }).join("")}
+      ${hasTraps(L) ? L.x.map((x, j) => {
+        const no = fmt(L.a.length + 1 + j), pen = "−" + fmt(TRAPS[j] || 0), hit = q.traps && q.traps[j];
+        if(hit) return `<div class="slot trapslot got t${(q.trapBy || {})[j] || 0} ${fx.trap && fx.trap.i === j && Date.now() - fx.trap.at < 900 ? "pop" : ""}"><span class="n">${no}</span><span class="tx">${esc(ansName(x))}</span><span class="pt">${pen}</span></div>`;
+        if(show) return `<button class="slot trapslot ${q.over ? "miss" : "peek"}" ${q.over ? "disabled" : `data-trap="${j}"`}><span class="n">${no}</span><span class="tx">${esc(ansName(x))}</span><span class="pt">${pen}</span></button>`;
+        return `<div class="slot trapslot"><span class="n">${no}</span><span class="tx">؟ ؟ ؟ ؟</span><span class="pt">${pen}</span></div>`;
+      }).join("") : ""}
     </div>
     ${live && !refOn() ? `
       <form class="answer" id="form">
@@ -475,7 +484,6 @@ function viewQuestion(){
         <button class="btn" type="submit">جاوب</button>
       </form>` : ""}
     <div class="msg ${msg ? msg.k : ""} ${bad >= 0 ? "shake" : ""}">${msg ? esc(msg.t) : ""}</div>
-    ${q.over && hasTraps(L) ? `<div class="trapline">أجوبة الفخ كانت: ${L.x.map((x, i) => `${esc(ansName(x))} (−${fmt(TRAPS[i] || 0)})`).join(" · ")}</div>` : ""}
     <div class="row center tools">
       ${live && refOn() ? `
         <button class="btn ghost sm ${showQR ? "on" : ""}" data-act="qr">كود الحكم</button>
@@ -580,7 +588,7 @@ function miss(text, ti){
   let pen = 0;
   if(q.risk) pen = PASS_RISK;
   else if(hasTraps(L)){
-    if(ti !== undefined && L.x[ti] !== undefined && !q.traps[ti]){ q.traps[ti] = true; pen = TRAPS[ti] || 0; text = `فخ! «${ansName(L.x[ti])}»`; }
+    if(ti !== undefined && L.x[ti] !== undefined && !q.traps[ti]){ q.traps[ti] = true; (q.trapBy = q.trapBy || {})[ti] = q.turn; fx.trap = { i:ti, at:Date.now() }; pen = TRAPS[ti] || 0; text = `فخ! «${ansName(L.x[ti])}»`; }
   }
   else { pen = TRAPS[q.wrong] || 0; q.wrong++; }
   S.score[q.turn] -= pen; peek = false;
@@ -737,9 +745,9 @@ function refApp(){
           ? `<div class="slot got ${a.by < 0 ? "" : "t" + a.by}"><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(a.n)}</span><span class="pt">${a.by < 0 ? "تلميح" : "✓"}</span></div>`
           : `<button class="slot" ${st.over ? "disabled" : ""} data-r='{"t":"award","i":${i}}'><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(a.n)}${a.h ? `<small class="muted" style="display:block;font-size:12px;font-weight:400">انعطى تلميح: ${esc(a.h)}</small>` : ""}</span><span class="pt">+${fmt(a.p)}</span></button>`).join("")}
       </div>
-      ${(st.traps || []).length ? `<div class="muted" style="text-align:center;margin-top:14px">أجوبة الفخ — اضغط لو الفريق قال واحد منها</div>
+      ${(st.traps || []).length ? `<div class="muted" style="text-align:center;margin-top:14px">الأجوبة ١١ و١٢ و١٣ فخاخ — اضغط لو الفريق قال واحد منها</div>
       <div class="slots" style="grid-template-columns:1fr">
-        ${st.traps.map((t, i) => `<button class="slot trap" ${st.over || t.hit ? "disabled" : ""} data-r='{"t":"trap","i":${i}}'><span class="n">✗</span><span class="tx">${esc(t.n)}</span><span class="pt">${t.hit ? "انكشف" : "−" + fmt(t.p)}</span></button>`).join("")}
+        ${st.traps.map((t, i) => `<button class="slot trap" ${st.over || t.hit ? "disabled" : ""} data-r='{"t":"trap","i":${i}}'><span class="n">${fmt(st.answers.length + 1 + i)}</span><span class="tx">${esc(t.n)}</span><span class="pt">${t.hit ? "انكشف" : "−" + fmt(t.p)}</span></button>`).join("")}
       </div>` : ""}
       ${st.over ? "" : `<div class="muted" style="text-align:center;margin-top:12px">وسائل ${esc(st.names[st.turn])}${st.risk ? " — دور بمخاطرة" : ""}</div>
       <div class="lf" style="justify-content:center">
@@ -797,6 +805,7 @@ $app.addEventListener("click", e => {
   else if(d.act === "sound"){ sound = !sound; try{ localStorage.setItem(SKEY, sound ? "1" : "0"); }catch(e){} if(sound){ audio(); sfx("tick"); } }
   else if(d.life) useLife(d.life);
   else if(d.award) award(+d.award);
+  else if(d.trap !== undefined) miss("", +d.trap);
   else if(d.act === "peek") peek = !peek;
   else if(d.act === "wrong") miss("الحكم حسبها غلط");
   else if(d.act === "endq") endQuestion();
