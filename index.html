@@ -233,7 +233,8 @@ let p2p = { peer:null, id:null, conns:[], url:null, state:"off" };
 const refLink = () => net ? net.url : p2p.url;
 const canRef = () => !!(net || p2p.id);
 const refOn = () => !!(canRef() && S.ref);
-let fx = {}, askClear = false, lastScreen = S.screen;           // fx = آخر كشف/غلطة عشان الحركة تشتغل مرة وحدة
+let fx = {}, askClear = false, lastScreen = S.screen;
+let U = [];                                                      // سجل «تراجع»: نسخ من الحالة قبل كل حركة (آخر ٢٠)           // fx = آخر كشف/غلطة عشان الحركة تشتغل مرة وحدة
 
 /* ===================== سجل الأسئلة اللي انلعبت ===================== */
 // لكل فئة قائمة بعناوين الأسئلة اللي انلعبت، الأقدم أول. المفتاح = معرّف الفئة + عنوان السؤال (مو رقمه في البنك).
@@ -343,6 +344,7 @@ function render(){
 function qrBox(){
   let svg = "";
   const url = refLink();
+  if(!url) return `<div class="qr"><div class="muted">${p2p.state === "failed" ? "ربط الحكم مو متوفر الحين. تقدرون تلعبون بدون حكم." : "يجهّز ربط الحكم…"}</div></div>`;
   try{ const q = qrcode(0, "M"); q.addData(url); q.make(); svg = q.createSvgTag({ cellSize:6, margin:2, scalable:true }); }catch(e){}
   const note = net ? "الحكم يمسح الكود من جواله (لازم نفس الواي فاي)"
     : "الحكم يمسح الكود من جواله، من أي شبكة أو من بيانات الجوال" + (p2p.conns.length ? " — متصل الحين: " + fmt(p2p.conns.length) : "");
@@ -356,7 +358,7 @@ function viewSetup(){
     <h1 class="logo"><svg viewBox="0 0 200 200" aria-hidden="true"><path d="M30 170 L100 34 L170 170" fill="none" style="stroke:var(--text)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path d="M46 126 H76 L88 104 L102 150 L114 116 L122 126 H154" fill="none" style="stroke:var(--accent)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg><span>تحدّي <em>الربع</em><small>سؤال واحد وأجوبته كثيرة — منو يطلّع أكثر؟</small></span></h1>
     <div class="setup">
       <div class="card info">
-        <div><b class="ic">١٠</b><div><h2>طريقة اللعب</h2><p>كل سؤال وراه ١٠ أجوبة مخفية. الجواب المعروف نقاطه قليلة، وكل ما صعب الجواب زادت نقاطه لين ${fmt(10 * STEP)}. وانتبهوا: الجواب الغلط فخ يخصم من نقاطكم.</p></div></div>
+        <div><b class="ic">١٠</b><div><h2>طريقة اللعب</h2><p>كل سؤال وراه ١٠ أجوبة مخفية. الجواب المعروف نقاطه قليلة، وكل ما صعب الجواب زادت نقاطه لين ${fmt(10 * STEP)}. وانتبهوا: في كل سؤال ${fmt(TRAPS.length)} أجوبة فخ تخصم من نقاطكم.</p></div></div>
         <div><b class="ic">حكم</b><div><h2>الحكم</h2><p>شخص واحد ما يلعب، يمسك اللعبة من جواله: يقرا السؤال، يحسب الجواب الصح، ويحسم أي خلاف بين الفريقين.</p></div></div>
         <div><b class="ic">+٣</b><div><h2>كم لاعب؟</h2><p>٣ أشخاص بالقليل: الحكم وفريقين. والفريق ممكن يكون شخص واحد أو مجموعة.</p></div></div>
         <div><b class="ic">QR</b><div><h2>التشغيل</h2><p>بعد «استمرار» يطلع كود QR. الحكم يمسحه من جواله، واللعبة تنعرض على الشاشة الكبيرة أو التلفزيون.</p></div></div>
@@ -402,6 +404,7 @@ function viewSetup(){
         </ul>
       </div>
       <div class="row center"><button class="btn" data-act="continue" ${full ? "" : "disabled"}>استمرار</button></div>
+      <div class="muted sm" style="text-align:center">${canRef() ? "ربط جوال الحكم جاهز." : p2p.state === "failed" ? "ربط جوال الحكم مو متوفر الحين — اللعب بدون حكم." : "ربط جوال الحكم يجهز… لو ضغطتوا «استمرار» قبل ما يجهز تبدون بدون حكم، وتقدرون ترجّعونه من داخل اللعبة."}</div>
       <div class="row center">${soundBtn()}${themeBtn()}</div>
       <div class="handle">@abaqer_tech</div>
     </div>`;
@@ -444,6 +447,7 @@ function viewQuestion(){
   const show = peek || q.over;
   // الحركة تشتغل بس في أول رسم بعد الكشف/الغلطة، مو مع كل رسم
   const now = Date.now(), pop = fx.pop && now - fx.pop.at < 1500 ? fx.pop.i : -1, bad = fx.no && now - fx.no.at < 1500 ? fx.no.team : -1;
+  const tpop = fx.trap && now - fx.trap.at < 1500 ? fx.trap.i : -1;
   fx = {};
   $app.innerHTML = `
     <div class="qtop">
@@ -473,28 +477,32 @@ function viewQuestion(){
       }).join("")}
       ${hasTraps(L) ? L.x.map((x, j) => {
         const no = fmt(L.a.length + 1 + j), pen = "−" + fmt(TRAPS[j] || 0), hit = q.traps && q.traps[j];
-        if(hit) return `<div class="slot trapslot got t${(q.trapBy || {})[j] || 0} ${fx.trap && fx.trap.i === j && Date.now() - fx.trap.at < 900 ? "pop" : ""}"><span class="n">${no}</span><span class="tx">${esc(ansName(x))}</span><span class="pt">${pen}</span></div>`;
+        if(hit) return `<div class="slot trapslot got t${(q.trapBy || {})[j] || 0} ${tpop === j ? "pop" : ""}"><span class="n">${no}</span><span class="tx">${esc(ansName(x))}</span><span class="pt">${pen}</span></div>`;
         if(show) return `<button class="slot trapslot ${q.over ? "miss" : "peek"}" ${q.over ? "disabled" : `data-trap="${j}"`}><span class="n">${no}</span><span class="tx">${esc(ansName(x))}</span><span class="pt">${pen}</span></button>`;
         return `<div class="slot trapslot"><span class="n">${no}</span><span class="tx">؟ ؟ ؟ ؟</span><span class="pt">${pen}</span></div>`;
       }).join("") : ""}
     </div>
-    ${live && !refOn() ? `
+    ${live && !refOn() && !q.paused ? `
       <form class="answer" id="form">
         <input type="text" id="ans" autocomplete="off" placeholder="جواب ${esc(S.names[q.turn])}…">
         <button class="btn" type="submit">جاوب</button>
       </form>` : ""}
     <div class="msg ${msg ? msg.k : ""} ${bad >= 0 ? "shake" : ""}">${msg ? esc(msg.t) : ""}</div>
     <div class="row center tools">
+      ${live ? `<button class="btn ${q.paused ? "" : "ghost"} sm" data-act="pause">${q.paused ? (q.fresh ? "جاهزين؟ ابدأ" : "كمّل") : "وقّف"}</button>` : ""}
       ${live && refOn() ? `
         <button class="btn ghost sm ${showQR ? "on" : ""}" data-act="qr">كود الحكم</button>
         <button class="btn ghost sm" data-act="swap">بدّل الدور</button>
-        <button class="btn ghost sm" data-act="endq">اكشف الباقي</button>`
+        <button class="btn ghost sm" data-act="endq">اكشف الباقي</button>
+        <button class="btn ghost sm" data-act="refoff">كمّل بدون حكم</button>`
       : live ? `
         <button class="btn ghost sm ${peek ? "on" : ""}" data-act="peek">وضع الحكم${peek ? " (اضغط الجواب الصح)" : ""}</button>
         <button class="btn ghost sm" data-act="wrong">✗ جواب غلط</button>
         <button class="btn ghost sm" data-act="swap">بدّل الدور</button>
-        <button class="btn ghost sm" data-act="endq">اكشف الباقي</button>`
+        <button class="btn ghost sm" data-act="endq">اكشف الباقي</button>
+        ${canRef() ? `<button class="btn ghost sm" data-act="refon">${S.hadRef ? "رجّع الحكم" : "أضف حكم من الجوال"}</button>` : ""}`
       : `<button class="btn" data-act="next">${S.qi + 1 < S.order.length ? "السؤال التالي" : "النتيجة النهائية"}</button>`}
+      ${U.length ? `<button class="btn ghost sm" data-act="undo">تراجع عن آخر حركة</button>` : ""}
     </div>
     ${live && refOn() && showQR ? `<div class="card" style="margin-top:12px">${qrBox()}</div>` : ""}`;
   paintTimer();
@@ -511,6 +519,7 @@ function viewEnd(){
         ${[0,1].map(i => `<div class="team turn" style="--c:var(--${i ? "b" : "a"});--cs:var(--${i ? "b" : "a"}-soft)"><div class="nm">${esc(S.names[i])}</div><div class="sc">${fmt(S.score[i])}</div></div>`).join("")}
       </div>
       <button class="btn" data-act="new">جولة جديدة</button>
+      ${U.length ? `<div class="row center"><button class="btn ghost sm" data-act="undo">تراجع عن آخر حركة</button></div>` : ""}
     </div>`;
 }
 
@@ -532,9 +541,10 @@ function startTimer(){
   left = S.seconds;
   if(tick) return;
   tick = setInterval(() => {
+    if(S.q.paused) return;                                             // موقّف: الوقتين واقفين
     left--; S.q.rl--;
-    if(S.q.rl <= 0){ msg = { k:"no", t:"خلص وقت الجولة — انكشفت باقي الأجوبة" }; endQuestion(); render(); }
-    else if(left <= 0){ timeout(); render(); }
+    if(S.q.rl <= 0){ snap(); msg = { k:"no", t:"خلص وقت السؤال — انكشفت باقي الأجوبة" }; endQuestion(); render(); }
+    else if(left <= 0){ snap(); timeout(); render(); }
     else { paintTimer(); if(left <= 5) sfx("tick"); }
   }, 1000);
 }
@@ -547,21 +557,22 @@ function startGame(){
   clamp("roundMin"); clamp("seconds");
   S.score = [0,0]; S.used = [{hint:0},{hint:0}]; S.qi = 0;
   // كل فئة مختارة تنلعب PER_CAT أسئلة منها (أو كل اللي فيها لو أقل)، واللي ما انلعب قبل له الأولوية
-  S.order = S.picked.flatMap(id => pickLists(cat(id)).map(l => ({ c:id, l })));
+  S.order = S.picked.flatMap(id => pickLists(cat(id)).map(l => ({ c:id, l, t:cat(id).lists[l].t })));
+  U = []; S.hadRef = !!S.ref;
   S.screen = "question"; startQuestion();
 }
 function startQuestion(){
-  S.q = { turn:S.qi % 2, got:{}, wrong:0, dbl:false, risk:false, over:false, rl:S.roundMin * 60 };
-  msg = null; peek = false; startTimer();
+  S.q = { turn:S.qi % 2, got:{}, wrong:0, dbl:false, risk:false, over:false, rl:S.roundMin * 60, paused:true, fresh:true };
+  bump(); msg = { k:"", t:"اقروا السؤال، ولما تكونون جاهزين اضغطوا «ابدأ» — الوقت واقف" }; peek = false; startTimer();
 }
 function endQuestion(){
-  const q = S.q; q.over = true; q.dbl = q.risk = false; peek = false; stopTimer();
+  const q = S.q; q.over = true; q.dbl = q.risk = q.paused = false; peek = false; stopTimer(); bump();
   try{ markPlayed(S.order[S.qi].c, curList().t); }catch(e){}   // السؤال ينحسب «انلعب» لما تخلص شاشته
 }
 function allFound(){ return Object.keys(S.q.got).length === curList().a.length; }
 function nextTurn(risk){
   const q = S.q;
-  q.dbl = false; q.risk = !!risk; q.turn = 1 - q.turn;
+  q.dbl = false; q.risk = !!risk; q.turn = 1 - q.turn; bump();
   startTimer();
 }
 // تغيير الدور يدوياً (من الشاشة أو من جوال الحكم): الدور يروح للفريق الثاني بوقت جديد، بدون خصم.
@@ -572,7 +583,7 @@ function swapTurn(){
 }
 function award(i){
   const q = S.q, L = curList(), pts = (i + 1) * STEP;
-  q.got[i] = q.turn; S.score[q.turn] += pts; peek = false;
+  q.got[i] = q.turn; S.score[q.turn] += pts; peek = false; bump();
   fx.pop = { i, at:Date.now() }; sfx("ok");
   msg = { k:"ok", t:`✓ ${ansName(L.a[i])} — +${fmt(pts)} لـ ${S.names[q.turn]}` };
   if(allFound()) return endQuestion();
@@ -586,11 +597,11 @@ function miss(text, ti){
   const q = S.q, L = curList();
   q.traps = q.traps || {};
   let pen = 0;
-  if(q.risk) pen = PASS_RISK;
-  else if(hasTraps(L)){
+  if(hasTraps(L)){
     if(ti !== undefined && L.x[ti] !== undefined && !q.traps[ti]){ q.traps[ti] = true; (q.trapBy = q.trapBy || {})[ti] = q.turn; fx.trap = { i:ti, at:Date.now() }; pen = TRAPS[ti] || 0; text = `فخ! «${ansName(L.x[ti])}»`; }
   }
-  else { pen = TRAPS[q.wrong] || 0; q.wrong++; }
+  else if(!q.risk){ pen = TRAPS[q.wrong] || 0; q.wrong++; }
+  if(q.risk) pen = PASS_RISK;                                          // دور المخاطرة: أي غلط (حتى الفخ) يخصم خصم المخاطرة
   S.score[q.turn] -= pen; peek = false;
   fx.no = { team:q.turn, at:Date.now() }; sfx("no");
   msg = { k:"no", t: pen ? `${text} — −${fmt(pen)} على ${S.names[q.turn]}` : `${text} — بدون خصم` };
@@ -629,14 +640,49 @@ function useLife(k){
     q.hints = q.hints || {};
     const i = L.a.findIndex((_, i) => q.got[i] === undefined && !q.hints[i]);   // أشهر جواب باقي ما انعطى له تلميح
     if(i < 0) return;
-    q.hints[i] = true; u.hint++;
+    q.hints[i] = true; u.hint++; bump();
     msg = { k:"", t:`تلميح للجواب رقم ${fmt(i + 1)}: ${hintFor(L, i)}` };
   }
   if(k === "pass" && !u.pass){ u.pass = true; msg = { k:"", t:`${S.names[q.turn]} رمى الدور — الغلط الحين يخصم ${fmt(PASS_RISK)}` }; nextTurn(true); }
-  if(k === "dbl" && !u.dbl){ u.dbl = true; q.dbl = true; }
+  if(k === "dbl" && !u.dbl){ u.dbl = true; q.dbl = true; bump(); }
 }
 
-function advance(){ S.qi++; if(S.qi >= S.order.length) S.screen = "end"; else startQuestion(); }
+// ختم الحركة: يزيد مع كل تغيير في اللعب. أمر الحكم اللي معه ختم قديم (ضغطة مكررة أو متأخرة) ينرفض.
+function bump(){ S.seq = (S.seq || 0) + 1; }
+function snap(){
+  U.push(JSON.stringify({ score:S.score, used:S.used, q:S.q, qi:S.qi, screen:S.screen, left }));
+  if(U.length > 20) U.shift();
+}
+function undo(){
+  if(!U.length) return;
+  const s = JSON.parse(U.pop());
+  S.score = s.score; S.used = s.used; S.q = s.q; S.qi = s.qi; S.screen = s.screen;
+  bump(); peek = false; stopTimer();
+  if(S.screen === "question" && S.q && !S.q.over){ startTimer(); left = s.left; }
+  msg = { k:"", t:"رجعنا عن آخر حركة" };
+}
+function togglePause(){
+  const q = S.q; if(!q || q.over) return;
+  q.paused = !q.paused; q.fresh = false; bump();
+  msg = q.paused ? { k:"", t:"اللعبة موقّفة — الوقت واقف" } : null;
+}
+// الحالة المحفوظة ممكن تكون من نسخة بنك أقدم: لو فئة أو سؤال تغيّر مكانه نرجع لشاشة الإعداد بدل ما تطيح الصفحة.
+function sane(){
+  try{
+    if(!S || typeof S !== "object" || !Array.isArray(S.picked) || !Array.isArray(S.names)) throw 0;
+    S.picked = S.picked.filter(id => cat(id));
+    if(S.screen === "question" || S.screen === "end" || S.screen === "qr"){
+      if(S.screen !== "qr" && (!Array.isArray(S.order) || !S.order.length)) throw 0;
+      (S.order || []).forEach(o => { const c = cat(o.c), l = c && c.lists[o.l]; if(!l || (o.t && l.t !== o.t)) throw 0; });
+      if(S.screen === "question" && (!S.q || !S.order[S.qi])) throw 0;
+      if(S.screen === "qr" && !S.picked.length) throw 0;
+    } else if(S.screen !== "setup") throw 0;
+  }catch(e){
+    const o = S && typeof S === "object" ? S : {};
+    S = Object.assign(fresh(), Array.isArray(o.names) && o.names.length === 2 ? { names:o.names } : {}, { picked:Array.isArray(o.picked) ? o.picked.filter(id => cat(id)) : [] });
+  }
+}
+function advance(){ bump(); S.qi++; if(S.qi >= S.order.length) S.screen = "end"; else startQuestion(); }
 // «فئة ٢ من ٣ · سؤال ٤ من ٦»
 function progress(){
   const o = S.order[S.qi], cats = [...new Set(S.order.map(x => x.c))];
@@ -647,10 +693,10 @@ function progress(){
 /* ===================== الربط مع جوال الحكم ===================== */
 function publish(){
   if(!canRef()) return;
-  const st = { screen:S.screen, names:S.names, score:S.score, ref:!!S.ref };
+  const st = { screen:S.screen, names:S.names, score:S.score, ref:!!S.ref, seq:S.seq || 0, undo:U.length > 0 };
   if(S.screen === "question"){
     const L = curList(), q = S.q;
-    Object.assign(st, { qi:S.qi, total:S.order.length, progress:progress(), title:L.t, turn:q.turn, over:q.over, risk:q.risk,
+    Object.assign(st, { qi:S.qi, total:S.order.length, progress:progress(), title:L.t, turn:q.turn, over:q.over, risk:q.risk, paused:!!q.paused, fresh:!!q.fresh,
       trap: q.risk ? PASS_RISK : hasTraps(L) ? 0 : (TRAPS[q.wrong] || 0),
       traps: hasTraps(L) ? L.x.map((x, i) => ({ n:ansName(x), p:TRAPS[i] || 0, hit:!!(q.traps && q.traps[i]) })) : [],
       life: { hint:HINTS - S.used[q.turn].hint, pass:!S.used[q.turn].pass && !q.risk, dbl:!S.used[q.turn].dbl, dblOn:q.dbl },
@@ -661,8 +707,16 @@ function publish(){
 }
 // الشاشة تفتح «غرفة» بمعرّف عشوائي طويل، والكود فيه هالمعرّف. بدون المعرّف ما أحد يقدر يتصل.
 function p2pInit(){
-  if(typeof Peer === "undefined" || p2p.peer) return;
-  const id = "rab3-" + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, "0")).join("");
+  if(typeof Peer === "undefined"){ p2p.state = "failed"; return; }
+  if(p2p.peer) return;
+  // معرّف الغرفة ينحفظ في المتصفح، فلو انعاد تحميل الشاشة يبقى نفس الكود وجوال الحكم يرجع يتصل لحاله.
+  const RKEY = "rab3-room";
+  let id = null;
+  try{ id = localStorage.getItem(RKEY); }catch(e){}
+  if(!/^rab3-[0-9a-f]{24}$/.test(id || "") || p2p.tries > 5){
+    id = "rab3-" + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, "0")).join("");
+    try{ localStorage.setItem(RKEY, id); }catch(e){}
+  }
   const peer = p2p.peer = new Peer(id);
   p2p.state = "connecting";
   peer.on("open", () => { p2p.id = id; p2p.url = location.origin + location.pathname + "?ref=" + id; p2p.state = "ready"; render(); });
@@ -672,18 +726,30 @@ function p2pInit(){
     c.on("close", () => { p2p.conns = p2p.conns.filter(x => x !== c); if(S.screen === "qr") render(); });
   });
   peer.on("disconnected", () => { try{ peer.reconnect(); }catch(e){} });
-  peer.on("error", () => { if(!p2p.id) p2p.state = "failed"; });
+  peer.on("error", e => {
+    if(p2p.id) return;
+    // المعرّف لسه محجوز من التحميل السابق: جرّب مرة ثانية بعد شوي، وبعد كم محاولة خذ معرّف جديد
+    if(e && e.type === "unavailable-id"){ p2p.tries = (p2p.tries || 0) + 1; try{ peer.destroy(); }catch(x){} p2p.peer = null; setTimeout(p2pInit, 1500); return; }
+    p2p.state = "failed"; if(S.screen !== "question") render();
+  });
+  if(!p2p.beat) p2p.beat = setInterval(() => p2p.conns.forEach(c => { try{ if(c.open) c.send({ p:1 }); }catch(e){} }), 3000);   // نبضة: جوال الحكم يعرف إن الشاشة حيّة
 }
 function applyCmd(c){
-  if(!refOn() || S.screen !== "question") return;
+  if(!refOn() || !c || (S.screen !== "question" && !(S.screen === "end" && c.t === "undo"))) return;
+  if(c.s !== undefined && c.s !== (S.seq || 0)) return;                    // أمر قديم: الحالة تغيّرت من بعد ما انضغط
+  if(c.t === "undo"){ undo(); return; }
   const q = S.q;
-  if(q.over){ if(c.t === "next") advance(); return; }
+  if(q.over){ if(c.t === "next"){ snap(); advance(); } return; }
+  if(c.t === "pause"){ togglePause(); return; }
+  if(q.paused) return;
+  snap(); const n0 = U.length, s0 = S.seq;
   if(c.t === "award" && Number.isInteger(c.i) && c.i >= 0 && c.i < curList().a.length && q.got[c.i] === undefined) award(c.i);
   else if(c.t === "wrong") miss("الحكم حسبها غلط");
   else if(c.t === "trap" && Number.isInteger(c.i) && hasTraps(curList()) && c.i >= 0 && c.i < curList().x.length && !(q.traps && q.traps[c.i])) miss("", c.i);
   else if(c.t === "endq") endQuestion();
   else if(c.t === "swap") swapTurn();
   else if(c.t === "life" && ["hint", "pass", "dbl"].includes(c.k)) useLife(c.k);
+  if(S.seq === s0 && U.length === n0) U.pop();                             // الأمر ما غيّر شي: لا تحفظ له نسخة تراجع
 }
 // يجيب عنوان ومفتاح الحكم من السيرفر. لو السيرفر انعاد تشغيله (مفتاح جديد) أو تغيّرت الشبكة (عنوان جديد) يتحدّث الكود لحاله.
 async function refreshNet(){
@@ -713,28 +779,58 @@ function refApp(){
   let st = null, sig = "";
   const P2P = REF.startsWith("rab3-");                                     // كود من استضافة ثابتة ← اتصال مباشر بالشاشة
   let conn = null;
-  const send = c => P2P ? (conn && conn.open && conn.send({ cmd:c })) : fetch("/cmd?k=" + REF, { method:"POST", body:JSON.stringify(c) }).then(pull).catch(() => {});
-  function p2pJoin(){
-    if(typeof Peer === "undefined"){ draw(); return; }
-    const peer = new Peer();
-    const dial = () => {
-      conn = peer.connect(REF, { reliable:true });
-      conn.on("data", d => { if(d && d.st){ st = d.st; draw(); } });
-      conn.on("close", () => { st = null; draw(); setTimeout(dial, 2000); });
-    };
-    peer.on("open", dial);
-    peer.on("disconnected", () => { try{ peer.reconnect(); }catch(e){} });
-    peer.on("error", () => { st = null; draw(); setTimeout(() => { if(!conn || !conn.open) dial(); }, 3000); });
+  let link = "connecting", seen = 0, peer = null, lastDial = 0;          // link: connecting | on | lost
+  const send = c => {
+    if(st && st.seq !== undefined) c.s = st.seq;                           // ختم الحالة: الشاشة ترفض الضغطة المكررة أو المتأخرة
+    if(!P2P) return fetch("/cmd?k=" + REF, { method:"POST", body:JSON.stringify(c) }).then(pull).catch(() => {});
+    if(conn && conn.open){ try{ conn.send({ cmd:c }); return; }catch(e){} }
+    lost();                                                                // الاتصال مقطوع: لا ترمي الأمر بصمت
+  };
+  function lost(){ if(link !== "lost"){ link = "lost"; st = null; draw(); } dial(); }
+  function dial(){
+    const now = Date.now(); if(now - lastDial < 1500) return; lastDial = now;
+    try{ if(conn) conn.close(); }catch(e){}
+    conn = null;
+    if(!peer || peer.destroyed){ makePeer(); return; }
+    if(peer.disconnected){ try{ peer.reconnect(); }catch(e){} return; }
+    if(!peer.open) return;
+    const c = conn = peer.connect(REF, { reliable:true });
+    c.on("data", d => { if(conn !== c) return; seen = Date.now(); if(link !== "on"){ link = "on"; } if(d && d.st){ st = d.st; draw(); } });
+    c.on("close", () => { if(conn === c) lost(); });
   }
+  function makePeer(){
+    try{ peer = new Peer(); }catch(e){ return; }
+    peer.on("open", () => { lastDial = 0; dial(); });
+    peer.on("disconnected", () => { try{ peer.reconnect(); }catch(e){} });
+    peer.on("error", () => { if(link === "on" && conn && conn.open) return; if(link !== "connecting"){ link = "lost"; st = null; draw(); } });
+  }
+  function p2pJoin(){
+    if(typeof Peer === "undefined"){ link = "lost"; draw(); return; }
+    makePeer();
+    // حارس: لو ما وصلت نبضة من الشاشة من ٩ ثواني، أو الاتصال ما انفتح، يعيد المحاولة
+    setInterval(() => {
+      const open = conn && conn.open;
+      if(link === "on" && (!open || Date.now() - seen > 9000)) lost();
+      else if(link !== "on") dial();
+    }, 2500);
+    document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible"){ wake(); if(!(conn && conn.open) || Date.now() - seen > 9000){ lastDial = 0; lost(); } } });
+  }
+  // الشاشة ما تنطفي والحكم ماسك الجوال (لو المتصفح يدعمها)
+  let lock = null;
+  async function wake(){ try{ if(navigator.wakeLock && (!lock || lock.released)) lock = await navigator.wakeLock.request("screen"); }catch(e){} }
+  wake(); document.addEventListener("click", wake, { once:true });
   const col = i => `var(--${i ? "b" : "a"})`;
   function draw(){
-    if(!st){ $app.innerHTML = `<div class="end"><div class="w">تحدّي الربع</div><div class="muted">ما في اتصال باللعبة. الكود اللي مسحته ممكن يكون قديم: امسح الكود اللي على الشاشة الحين، وتأكد إن الجوال على نفس واي فاي الكمبيوتر.</div></div>`; return; }
+    if(!st){ $app.innerHTML = `<div class="end"><div class="w">تحدّي الربع</div><div class="muted">${
+      !P2P ? "ما في اتصال باللعبة. الكود اللي مسحته ممكن يكون قديم: امسح الكود اللي على الشاشة الحين، وتأكد إن الجوال على نفس واي فاي الكمبيوتر."
+      : link === "connecting" ? "يتصل باللعبة…"
+      : "انقطع الاتصال باللعبة، وأحاول أرجّعه لحالي… تأكد إن شاشة اللعبة مفتوحة وإن الجوال فيه إنترنت. لو طوّل، امسح الكود اللي على الشاشة من جديد."}</div></div>`; return; }
     const head = `<div class="row center" style="margin-bottom:6px">${themeBtn()}</div><div class="row" style="justify-content:space-between;font-weight:800">
       <span style="color:${col(0)}">${esc(st.names[0])}: ${fmt(st.score[0])}</span>
       <span style="color:${col(1)}">${esc(st.names[1])}: ${fmt(st.score[1])}</span></div>`;
     if(st.screen !== "question" || !st.ref){
       $app.innerHTML = `<div class="ref">${head}<div class="end"><div class="muted">${
-        st.screen === "end" ? "خلصت الجولة" : st.screen !== "question" ? "أنت الحكم. بانتظار بداية الجولة…" : "الجولة شغّالة بدون حكم"}</div></div></div>`; return;
+        st.screen === "end" ? "خلصت اللعبة" : st.screen !== "question" ? "أنت الحكم. بانتظار بداية الجولة…" : "الجولة شغّالة بدون حكم"}</div></div></div>`; return;
     }
     $app.innerHTML = `<div class="ref">${head}
       <div class="muted" style="text-align:center;margin-top:8px">${esc(st.progress || "")}</div>
@@ -743,13 +839,13 @@ function refApp(){
       <div class="slots" style="grid-template-columns:1fr">
         ${st.answers.map((a, i) => a.by != null
           ? `<div class="slot got ${a.by < 0 ? "" : "t" + a.by}"><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(a.n)}</span><span class="pt">${a.by < 0 ? "تلميح" : "✓"}</span></div>`
-          : `<button class="slot" ${st.over ? "disabled" : ""} data-r='{"t":"award","i":${i}}'><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(a.n)}${a.h ? `<small class="muted" style="display:block;font-size:12px;font-weight:400">انعطى تلميح: ${esc(a.h)}</small>` : ""}</span><span class="pt">+${fmt(a.p)}</span></button>`).join("")}
+          : `<button class="slot" ${st.over || st.paused ? "disabled" : ""} data-r='{"t":"award","i":${i}}'><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(a.n)}${a.h ? `<small class="muted" style="display:block;font-size:12px;font-weight:400">انعطى تلميح: ${esc(a.h)}</small>` : ""}</span><span class="pt">+${fmt(a.p)}</span></button>`).join("")}
       </div>
       ${(st.traps || []).length ? `<div class="muted" style="text-align:center;margin-top:14px">الأجوبة ١١ و١٢ و١٣ فخاخ — اضغط لو الفريق قال واحد منها</div>
       <div class="slots" style="grid-template-columns:1fr">
-        ${st.traps.map((t, i) => `<button class="slot trap" ${st.over || t.hit ? "disabled" : ""} data-r='{"t":"trap","i":${i}}'><span class="n">${fmt(st.answers.length + 1 + i)}</span><span class="tx">${esc(t.n)}</span><span class="pt">${t.hit ? "انكشف" : "−" + fmt(t.p)}</span></button>`).join("")}
+        ${st.traps.map((t, i) => `<button class="slot trap" ${st.over || t.hit || st.paused ? "disabled" : ""} data-r='{"t":"trap","i":${i}}'><span class="n">${fmt(st.answers.length + 1 + i)}</span><span class="tx">${esc(t.n)}</span><span class="pt">${t.hit ? "انكشف" : "−" + fmt(t.p)}</span></button>`).join("")}
       </div>` : ""}
-      ${st.over ? "" : `<div class="muted" style="text-align:center;margin-top:12px">وسائل ${esc(st.names[st.turn])}${st.risk ? " — دور بمخاطرة" : ""}</div>
+      ${st.over || st.paused ? "" : `<div class="muted" style="text-align:center;margin-top:12px">وسائل ${esc(st.names[st.turn])}${st.risk ? " — دور بمخاطرة" : ""}</div>
       <div class="lf" style="justify-content:center">
         <button ${st.life.hint > 0 ? "" : "disabled"} data-r='{"t":"life","k":"hint"}'>تلميح ${fmt(st.life.hint)}</button>
         <button ${st.life.pass ? "" : "disabled"} data-r='{"t":"life","k":"pass"}'>باس</button>
@@ -757,9 +853,12 @@ function refApp(){
       </div>`}
       <div class="bar">${st.over
         ? `<button class="btn" style="grid-column:1/-1" data-r='{"t":"next"}'>${st.qi + 1 < st.total ? "السؤال التالي " : "النتيجة النهائية "}</button>`
+        : st.paused ? `<button class="btn" style="grid-column:1/-1" data-r='{"t":"pause"}'>${st.fresh ? "جاهزين؟ ابدأ الوقت" : "كمّل"}</button>`
         : `<button class="wrongbtn" data-r='{"t":"wrong"}'>✗ غلط${st.trap ? " (−" + fmt(st.trap) + ")" : (st.traps || []).length ? " (بدون خصم)" : ""}</button>
-           <button class="btn ghost" data-r='{"t":"endq"}'>اكشف الباقي</button>
-           <button class="btn ghost" style="grid-column:1/-1" data-r='{"t":"swap"}'>بدّل الدور</button>`}</div>
+           <button class="btn ghost" data-r='{"t":"swap"}'>بدّل الدور</button>
+           <button class="btn ghost" data-r='{"t":"pause"}'>وقّف</button>
+           <button class="btn ghost" data-r='{"t":"endq"}' data-sure="تكشف باقي الأجوبة وتنهي السؤال؟">اكشف الباقي</button>`}
+        ${st.undo ? `<button class="btn ghost" style="grid-column:1/-1" data-r='{"t":"undo"}'>تراجع عن آخر حركة</button>` : ""}</div>
     </div>`;
   }
   async function pull(){
@@ -768,7 +867,7 @@ function refApp(){
       const t = await r.text(); if(t !== sig){ sig = t; st = JSON.parse(t); draw(); }
     }catch(e){ if(sig !== "!"){ sig = "!"; st = null; draw(); } }
   }
-  $app.addEventListener("click", e => { const b = e.target.closest("button[data-r]"); if(b && !b.disabled) send(JSON.parse(b.dataset.r)); });
+  $app.addEventListener("click", e => { const b = e.target.closest("button[data-r]"); if(b && !b.disabled && (!b.dataset.sure || confirm(b.dataset.sure))) send(JSON.parse(b.dataset.r)); });
   if(P2P){ draw(); p2pJoin(); } else { setInterval(pull, 600); pull(); }
 }
 
@@ -785,7 +884,7 @@ $app.addEventListener("change", e => {
 });
 $app.addEventListener("submit", e => {
   e.preventDefault();
-  if(e.target.id === "form"){ submit(document.getElementById("ans").value); render(); }
+  if(e.target.id === "form"){ if(S.q && S.q.paused) return; snap(); const s0 = S.seq; submit(document.getElementById("ans").value); if(S.seq === s0) U.pop(); render(); }
 });
 $app.addEventListener("click", e => {
   if(REF) return;
@@ -803,23 +902,29 @@ $app.addEventListener("click", e => {
   else if(d.act === "back") S.screen = "setup";
   else if(d.act === "hist-yes"){ H = {}; saveHist(); }
   else if(d.act === "sound"){ sound = !sound; try{ localStorage.setItem(SKEY, sound ? "1" : "0"); }catch(e){} if(sound){ audio(); sfx("tick"); } }
-  else if(d.life) useLife(d.life);
-  else if(d.award) award(+d.award);
-  else if(d.trap !== undefined) miss("", +d.trap);
-  else if(d.act === "peek") peek = !peek;
-  else if(d.act === "wrong") miss("الحكم حسبها غلط");
-  else if(d.act === "endq") endQuestion();
-  else if(d.act === "swap") swapTurn();
+  else if(d.act === "undo") undo();
+  else if(d.act === "pause") togglePause();
+  else if(d.act === "refoff"){ S.ref = false; showQR = false; msg = { k:"", t:"كمّلتوا بدون حكم — الأجوبة تنكتب من الشاشة" }; }
+  else if(d.act === "refon"){ S.ref = S.hadRef = true; showQR = true; peek = false; msg = { k:"", t:"الحكم يمسح الكود من جواله" }; }
   else if(d.act === "qr") showQR = !showQR;
-  else if(d.act === "next") advance();
+  else if(d.act === "next"){ snap(); advance(); }
+  else if(S.screen === "question" && S.q && S.q.paused && (d.life || d.award || d.trap !== undefined || ["peek", "wrong", "endq", "swap"].includes(d.act))){ msg = { k:"", t:"اللعبة موقّفة — اضغطوا «ابدأ» أول" }; }
+  else if(d.life){ snap(); useLife(d.life); }
+  else if(d.award){ snap(); award(+d.award); }
+  else if(d.trap !== undefined){ snap(); miss("", +d.trap); }
+  else if(d.act === "peek") peek = !peek;
+  else if(d.act === "wrong"){ snap(); miss("الحكم حسبها غلط"); }
+  else if(d.act === "endq"){ snap(); endQuestion(); }
+  else if(d.act === "swap"){ snap(); swapTurn(); }
   else if(d.act === "quit"){ if(!confirm("تبون تنهون الجولة وتشوفون النتيجة؟")) return; stopTimer(); S.screen = "end"; }
-  else if(d.act === "new"){ stopTimer(); S = Object.assign(fresh(), { names:S.names, seconds:S.seconds, roundMin:S.roundMin }); }
+  else if(d.act === "new"){ stopTimer(); U = []; S = Object.assign(fresh(), { names:S.names, seconds:S.seconds, roundMin:S.roundMin }); }
   render();
 });
 
 // لو انحفظت الحالة وسط سؤال، يكمل من نفس المكان بوقت جديد
 if(REF){ document.body.classList.add("isref"); refApp(); }
 else {
+  sane(); lastScreen = S.screen;
   if(S.screen === "question" && S.q && !S.q.over) startTimer();
   render(); netInit(); syncHist();
 }
