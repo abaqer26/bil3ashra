@@ -100,6 +100,10 @@ input[type=text]{width:100%;font:inherit;font-weight:600;font-size:18px;color:va
 .slot .n{flex:0 0 30px;height:30px;border-radius:50%;background:var(--panel2);display:grid;place-items:center;font-weight:800;font-size:14px}
 .slot .tx{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:800;font-size:18px;color:var(--muted);letter-spacing:3px}
 .slot .pt{font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums}
+.slot.trap{border-style:dashed}
+.slot.trap .n{background:var(--text);color:var(--bg)}
+.slot.trap .pt{color:var(--text)}
+.trapline{text-align:center;color:var(--muted);margin-top:10px;font-size:15px}
 .slot.hinted{border-color:var(--accent);border-style:dashed}
 .slot.hinted .tx{color:var(--accent);letter-spacing:0;font-weight:600;font-size:15px}
 .slot.got .tx{color:var(--text);letter-spacing:0}
@@ -387,7 +391,7 @@ function viewSetup(){
         <ul class="rules">
           <li>كل سؤال له <b>١٠ أجوبة مخفية</b>. الجواب الأشهر نقاطه أقل، والأندر نقاطه أكثر.</li>
           <li>الفريقين <b>يتناوبون</b>، كل دور جواب واحد، لين تنكشف الأجوبة كلها.</li>
-          <li><b>الفخاخ:</b> في كل سؤال ${fmt(TRAPS.length)} فخاخ — أول جواب غلط يخصم ${fmt(TRAPS[0])}، الثاني ${fmt(TRAPS[1])}، الثالث ${fmt(TRAPS[2])}. فكّر قبل ما تجاوب.</li>
+          <li><b>الفخاخ:</b> كل سؤال وراه ${fmt(TRAPS.length)} أجوبة فخ: أجوبة تبيّن صح وهي غلط. اللي يقول واحد منها ينخصم منه ${fmt(TRAPS[0])} أو ${fmt(TRAPS[1])} أو ${fmt(TRAPS[2])}. الغلط العادي يروّح الدور بدون خصم.</li>
           <li><b>تلميح</b> (${fmt(HINTS)} في الجولة): يعطيك معلومة عن أشهر جواب باقي، أو أول حرف منه وعدد حروفه. الجواب ما ينكشف، ولو جاوبته تاخذ نقاطه كاملة.</li>
           <li><b>باس</b> (مرة): ترمي الدور على الخصم بمخاطرة — لو غلط ينخصم منه ${fmt(PASS_RISK)}.</li>
           <li><b>جوابين</b> (مرة): تجاوب مرتين في نفس الدور.</li>
@@ -443,7 +447,9 @@ function viewQuestion(){
       <span class="tag">${c.icon} ${esc(c.name)}</span>
       <span class="tag">${esc(progress())}</span>
       <span class="tag" id="round"></span>
-      <span class="tag">${q.wrong < TRAPS.length ? "● ".repeat(TRAPS.length - q.wrong) + "الفخ الجاي −" + fmt(TRAPS[q.wrong]) : "الفخاخ خلصت"}</span>
+      <span class="tag">${hasTraps(L)
+        ? (() => { const left = L.x.filter((_, i) => !(q.traps && q.traps[i])).length; return left ? "● ".repeat(left) + (left === 1 ? "فخ واحد مخفي" : left === 2 ? "فخّين مخفيين" : fmt(left) + " فخاخ مخفية") : "الفخاخ انكشفت كلها"; })()
+        : q.wrong < TRAPS.length ? "● ".repeat(TRAPS.length - q.wrong) + "الفخ الجاي −" + fmt(TRAPS[q.wrong]) : "الفخاخ خلصت"}</span>
       ${soundBtn()}${themeBtn()}
       <button class="btn ghost sm" data-act="quit">إنهاء الجولة</button>
     </div>
@@ -469,6 +475,7 @@ function viewQuestion(){
         <button class="btn" type="submit">جاوب</button>
       </form>` : ""}
     <div class="msg ${msg ? msg.k : ""} ${bad >= 0 ? "shake" : ""}">${msg ? esc(msg.t) : ""}</div>
+    ${q.over && hasTraps(L) ? `<div class="trapline">أجوبة الفخ كانت: ${L.x.map((x, i) => `${esc(ansName(x))} (−${fmt(TRAPS[i] || 0)})`).join(" · ")}</div>` : ""}
     <div class="row center tools">
       ${live && refOn() ? `
         <button class="btn ghost sm ${showQR ? "on" : ""}" data-act="qr">كود الحكم</button>
@@ -556,10 +563,18 @@ function award(i){
   if(q.dbl){ q.dbl = false; q.risk = false; msg.t += " — باقي لكم جواب ثاني"; startTimer(); }
   else nextTurn();
 }
-function miss(text){
-  const q = S.q;
-  const pen = q.risk ? PASS_RISK : (TRAPS[q.wrong] || 0);
-  if(!q.risk) q.wrong++;
+// أجوبة الفخ: كل سؤال له ٣ أجوبة غلط محددة (x في bank.js) تخصم −٣٠٠ و−٢٠٠ و−١٠٠. الغلط العادي يروّح الدور بدون خصم.
+// السؤال اللي ما له x يمشي على القاعدة القديمة: أول ثلاث أغلاط تخصم.
+const hasTraps = L => Array.isArray(L.x) && L.x.length > 0;
+function miss(text, ti){
+  const q = S.q, L = curList();
+  q.traps = q.traps || {};
+  let pen = 0;
+  if(q.risk) pen = PASS_RISK;
+  else if(hasTraps(L)){
+    if(ti !== undefined && L.x[ti] !== undefined && !q.traps[ti]){ q.traps[ti] = true; pen = TRAPS[ti] || 0; text = `فخ! «${ansName(L.x[ti])}»`; }
+  }
+  else { pen = TRAPS[q.wrong] || 0; q.wrong++; }
   S.score[q.turn] -= pen; peek = false;
   fx.no = { team:q.turn, at:Date.now() }; sfx("no");
   msg = { k:"no", t: pen ? `${text} — −${fmt(pen)} على ${S.names[q.turn]}` : `${text} — بدون خصم` };
@@ -575,7 +590,10 @@ function submit(text){
   const q = S.q, L = curList(), n = norm(text);
   if(!n) return;
   const i = L.a.findIndex(a => ansAll(a).some(x => norm(x) === n));
-  if(i < 0) return miss(`«${text.trim()}» غلط`);
+  if(i < 0){
+    const ti = hasTraps(L) ? L.x.findIndex(a => ansAll(a).some(x => norm(x) === n)) : -1;
+    return miss(`«${text.trim()}» غلط`, ti >= 0 ? ti : undefined);
+  }
   if(q.got[i] !== undefined){ msg = { k:"no", t:`«${ansName(L.a[i])}» انكشف قبل — جرّب غيره` }; return; }
   award(i);
 }
@@ -617,7 +635,8 @@ function publish(){
   if(S.screen === "question"){
     const L = curList(), q = S.q;
     Object.assign(st, { qi:S.qi, total:S.order.length, progress:progress(), title:L.t, turn:q.turn, over:q.over, risk:q.risk,
-      trap: q.risk ? PASS_RISK : (TRAPS[q.wrong] || 0),
+      trap: q.risk ? PASS_RISK : hasTraps(L) ? 0 : (TRAPS[q.wrong] || 0),
+      traps: hasTraps(L) ? L.x.map((x, i) => ({ n:ansName(x), p:TRAPS[i] || 0, hit:!!(q.traps && q.traps[i]) })) : [],
       life: { hint:HINTS - S.used[q.turn].hint, pass:!S.used[q.turn].pass && !q.risk, dbl:!S.used[q.turn].dbl, dblOn:q.dbl },
       answers: L.a.map((a, i) => ({ n:ansName(a), p:(i + 1) * STEP, by:q.got[i], h:q.hints && q.hints[i] ? hintFor(L, i) : undefined })) });
   }
@@ -645,6 +664,7 @@ function applyCmd(c){
   if(q.over){ if(c.t === "next") advance(); return; }
   if(c.t === "award" && Number.isInteger(c.i) && c.i >= 0 && c.i < curList().a.length && q.got[c.i] === undefined) award(c.i);
   else if(c.t === "wrong") miss("الحكم حسبها غلط");
+  else if(c.t === "trap" && Number.isInteger(c.i) && hasTraps(curList()) && c.i >= 0 && c.i < curList().x.length && !(q.traps && q.traps[c.i])) miss("", c.i);
   else if(c.t === "endq") endQuestion();
   else if(c.t === "life" && ["hint", "pass", "dbl"].includes(c.k)) useLife(c.k);
 }
@@ -704,10 +724,14 @@ function refApp(){
       <div class="qtitle" style="margin-bottom:0">${esc(st.title)}</div>
       <div class="who" style="color:${st.over ? "var(--muted)" : col(st.turn)}">${st.over ? "انتهى السؤال" : "الدور: " + esc(st.names[st.turn])}</div>
       <div class="slots" style="grid-template-columns:1fr">
-        ${st.answers.map((a, i) => a.by !== undefined
+        ${st.answers.map((a, i) => a.by != null
           ? `<div class="slot got ${a.by < 0 ? "" : "t" + a.by}"><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(a.n)}</span><span class="pt">${a.by < 0 ? "تلميح" : "✓"}</span></div>`
           : `<button class="slot" ${st.over ? "disabled" : ""} data-r='{"t":"award","i":${i}}'><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(a.n)}${a.h ? `<small class="muted" style="display:block;font-size:12px;font-weight:400">انعطى تلميح: ${esc(a.h)}</small>` : ""}</span><span class="pt">+${fmt(a.p)}</span></button>`).join("")}
       </div>
+      ${(st.traps || []).length ? `<div class="muted" style="text-align:center;margin-top:14px">أجوبة الفخ — اضغط لو الفريق قال واحد منها</div>
+      <div class="slots" style="grid-template-columns:1fr">
+        ${st.traps.map((t, i) => `<button class="slot trap" ${st.over || t.hit ? "disabled" : ""} data-r='{"t":"trap","i":${i}}'><span class="n">✗</span><span class="tx">${esc(t.n)}</span><span class="pt">${t.hit ? "انكشف" : "−" + fmt(t.p)}</span></button>`).join("")}
+      </div>` : ""}
       ${st.over ? "" : `<div class="muted" style="text-align:center;margin-top:12px">وسائل ${esc(st.names[st.turn])}${st.risk ? " — دور بمخاطرة" : ""}</div>
       <div class="lf" style="justify-content:center">
         <button ${st.life.hint > 0 ? "" : "disabled"} data-r='{"t":"life","k":"hint"}'>تلميح ${fmt(st.life.hint)}</button>
@@ -716,7 +740,7 @@ function refApp(){
       </div>`}
       <div class="bar">${st.over
         ? `<button class="btn" style="grid-column:1/-1" data-r='{"t":"next"}'>${st.qi + 1 < st.total ? "السؤال التالي " : "النتيجة النهائية "}</button>`
-        : `<button class="wrongbtn" data-r='{"t":"wrong"}'>✗ غلط${st.trap ? " (−" + fmt(st.trap) + ")" : ""}</button>
+        : `<button class="wrongbtn" data-r='{"t":"wrong"}'>✗ غلط${st.trap ? " (−" + fmt(st.trap) + ")" : (st.traps || []).length ? " (بدون خصم)" : ""}</button>
            <button class="btn ghost" data-r='{"t":"endq"}'>اكشف الباقي</button>`}</div>
     </div>`;
   }
