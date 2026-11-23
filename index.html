@@ -370,14 +370,32 @@ const shuffle = a => a.map(x => [Math.random(), x]).sort((x, y) => x[0] - y[0]).
 // ولو الفئة انلعبت كلها ينمسح سجلها وتبدأ من جديد.
 // سهولة السؤال: k = كم جواب من العشرة تطلعه جمعة عادية (من تقييم قسم الأسئلة). كل ما زاد أسهل.
 const ease = L => typeof L.k === "number" ? L.k : 5;
-function pickLists(c){
+// سؤالين «متشابهين» ما يطلعون في نفس الجولة: إذا يتشاركون ٦ أجوبة أو أكثر من العشرة
+// (مثل طوكيو ٢٠٢٠ وباريس ٢٠٢٤، أو أول ١٠ أئمة وآخر ١٠ أئمة).
+const SETS = new WeakMap();
+function sets(L){
+  if(!SETS.has(L)) SETS.set(L, { a:L.a.map(x => new Set(ansAll(x).map(norm))), x:new Set((L.x || []).flatMap(t => ansAll(t).map(norm))) });
+  return SETS.get(L);
+}
+function similar(L1, L2){
+  if(L1 === L2) return false;
+  const s1 = sets(L1), s2 = sets(L2), all2 = new Set(s2.a.flatMap(z => [...z]));
+  const shared = s1.a.filter(z => [...z].some(v => all2.has(v))).length;
+  return shared >= 6;
+}
+function pickLists(c, chosen){
+  chosen = chosen || [];
   const all = c.lists.map((_, i) => i), need = Math.min(PER_CAT, all.length);
   const p = played(c.id).filter(t => c.lists.some(l => l.t === t));
   const age = i => p.indexOf(c.lists[i].t);
   const fresh = shuffle(all.filter(i => age(i) < 0)).sort((x, y) => ease(c.lists[y]) - ease(c.lists[x]));   // الأسهل أول، والصعب يطلع لما يخلص السهل
   const old = all.filter(i => age(i) >= 0).sort((x, y) => age(x) - age(y));
   H[c.id] = all.length && !fresh.length ? [] : p; saveHist();
-  return fresh.concat(old).slice(0, need).sort((x, y) => ease(c.lists[y]) - ease(c.lists[x]));   // ترتيب اللوحة: رقم ١ أسهل سؤال ورقم ٦ أصعب
+  const cand = fresh.concat(old), take = [];
+  for(const i of cand) if(take.length < need && !chosen.concat(take.map(j => c.lists[j])).some(L => similar(L, c.lists[i]))) take.push(i);
+  for(const i of cand) if(take.length < need && !take.includes(i)) take.push(i);   // لو ما كفّى: نكمّل حتى لو في تشابه، أحسن من فئة ناقصة
+  take.forEach(i => chosen.push(c.lists[i]));
+  return take.sort((x, y) => ease(c.lists[y]) - ease(c.lists[x]));   // ترتيب اللوحة: رقم ١ أسهل سؤال ورقم ٦ أصعب   // ترتيب اللوحة: رقم ١ أسهل سؤال ورقم ٦ أصعب
 }
 
 /* ===================== الصوت (Web Audio، على الشاشة بس) ===================== */
@@ -723,7 +741,8 @@ function startGame(){
   clamp("roundMin"); clamp("seconds");
   S.score = [0,0]; S.used = [{hint:0},{hint:0}]; S.qi = 0; S.log = { best:null, got:[0,0], traps:[0,0], at:Date.now() };
   // كل فئة مختارة تنلعب PER_CAT أسئلة منها (أو كل اللي فيها لو أقل)، واللي ما انلعب قبل له الأولوية
-  S.order = S.picked.flatMap(id => pickLists(cat(id)).map(l => ({ c:id, l, t:cat(id).lists[l].t })));
+  const chosen = [];
+  S.order = S.picked.flatMap(id => pickLists(cat(id), chosen).map(l => ({ c:id, l, t:cat(id).lists[l].t })));
   U = []; S.hadRef = !!S.ref;
   S.done = {}; S.picker = 0; S.screen = "board"; S.q = null; bump();   // اللوحة: كل فريق يختار فئة ورقم بدوره
 }
