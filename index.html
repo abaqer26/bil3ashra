@@ -4,29 +4,29 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>صيدة</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%230B2124'/%3E%3Cpath d='M18 54 L50 30 L82 54 L66 50 L50 62 L34 50 Z' fill='%23E9C98B'/%3E%3Cpath d='M50 62 L44 76 L50 72 L56 76 Z' fill='%23C4572B'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%23102A6B'/%3E%3Cpath d='M18 54 L50 30 L82 54 L66 50 L50 62 L34 50 Z' fill='%23F5C542'/%3E%3Cpath d='M50 62 L44 76 L50 72 L56 76 Z' fill='%237CC4FF'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@500;700&family=Readex+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@500;700&family=Readex+Pro:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <style>
 :root{
-  /* هوية «صيدة»: ليل البر (أخضر غامق) + رملي ذهبي + صدئي. الفريق الأول ذهبي، والثاني أخضر بحري. */
-  --bg:#0B2124; --panel:#0F2B2E; --panel2:#163A3E; --line:#245055;
-  --text:#F1E6CF; --muted:#A9BDB6; --accent:#E9C98B; --accent-ink:#0B2124; --btn:#C4572B;
-  --head:"Reem Kufi","Readex Pro","Geeza Pro",sans-serif;
-  --a:#E9C98B; --a-soft:rgba(233,201,139,.15); --b:#7FD1C7; --b-soft:rgba(127,209,199,.14);
-  --rust:#E07A4F; --net:rgba(224,122,79,.32);
-  --dots:rgba(233,201,139,.06); --halo:rgba(22,60,64,.9); --glow:rgba(233,201,139,.45); --dune1:#E9C98B; --dune2:#C4572B;
+  /* هوية «صيدة» — الأزرق الملكي: أزرق غامق + ذهبي. الفريق الأول ذهبي، والثاني أزرق سماوي. */
+  --bg:#102A6B; --panel:#16378A; --panel2:#1C419C; --line:#2A52B4;
+  --text:#FFFFFF; --muted:#B9C7EE; --accent:#F5C542; --accent-ink:#102A6B; --btn:#F5C542; --btn-ink:#102A6B;
+  --head:"El Messiri","Readex Pro","Geeza Pro",sans-serif;
+  --a:#F5C542; --a-soft:rgba(245,197,66,.16); --b:#7CC4FF; --b-soft:rgba(124,196,255,.16);
+  --rust:#FF8A7A; --net:rgba(255,138,122,.3);
+  --dots:rgba(185,199,238,.07); --halo:rgba(58,104,214,.75); --glow:rgba(245,197,66,.5);
   color-scheme:dark;
 }
-/* الوضع الفاتح: نهار البر */
+/* الوضع الفاتح: أبيض مزرق مع أزرق ملكي وذهبي غامق */
 :root[data-theme="light"]{
-  --bg:#F4ECDD; --panel:#FFFCF5; --panel2:#EFE3CB; --line:#D9C7A3;
-  --text:#12302F; --muted:#5B6C66; --accent:#9A6A12; --accent-ink:#FFFFFF; --btn:#B84A22;
-  --a:#9A6A12; --a-soft:rgba(154,106,18,.12); --b:#17766C; --b-soft:rgba(23,118,108,.11);
-  --rust:#B84A22; --net:rgba(184,74,34,.22);
-  --dots:rgba(18,48,47,.05); --halo:rgba(233,201,139,.55); --glow:rgba(154,106,18,.2); --dune1:#C9A35A; --dune2:#B84A22;
+  --bg:#F2F5FC; --panel:#FFFFFF; --panel2:#E5ECFA; --line:#C8D4EF;
+  --text:#0E2156; --muted:#4D5E8C; --accent:#1E46B4; --accent-ink:#FFFFFF; --btn:#1E46B4; --btn-ink:#FFFFFF;
+  --a:#A87200; --a-soft:rgba(168,114,0,.12); --b:#1E73C8; --b-soft:rgba(30,115,200,.11);
+  --rust:#C9402F; --net:rgba(201,64,47,.2);
+  --dots:rgba(14,33,86,.05); --halo:rgba(30,70,180,.12); --glow:rgba(30,70,180,.2);
   color-scheme:light;
 }
 *{box-sizing:border-box}
@@ -39,7 +39,7 @@ button:disabled{opacity:.35;cursor:not-allowed}
 .logo{font-weight:800;font-size:clamp(40px,8vw,84px);line-height:1.25;color:var(--accent);margin:0}
 .logo small{display:block;font-size:.26em;font-weight:400;color:var(--muted);line-height:1.6}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:20px}
-.btn{background:var(--btn);color:#fff;font-weight:800;padding:14px 26px;font-size:18px}
+.btn{background:var(--btn);color:var(--btn-ink);font-weight:800;padding:14px 26px;font-size:18px}
 .btn.ghost{background:var(--panel2);color:var(--text);font-weight:600;border:1px solid var(--line)}
 .btn.sm{padding:8px 14px;font-size:14px}
 .btn.on{background:var(--accent);color:var(--accent-ink)}
@@ -196,8 +196,8 @@ h2,.qtitle,.logo,.team .sc,.timer b,.end .w,.slot .pt,.btn{font-family:var(--hea
 .chip small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
 .handle{text-align:center;color:var(--muted);margin-top:22px;direction:ltr}
 /* هوية صيدة */
-body::after{content:"";position:fixed;inset:auto 0 0 0;height:120px;pointer-events:none;z-index:-1;opacity:.16;
-  background:no-repeat bottom/100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0 90 C220 30 420 40 620 78 S980 110 1200 52 V120 H0Z' fill='%23E9C98B'/%3E%3C/svg%3E")}
+body::after{content:"";position:fixed;inset:auto 0 0 0;height:110px;pointer-events:none;z-index:-1;opacity:.1;
+  background:no-repeat bottom/100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0 90 C220 30 420 40 620 78 S980 110 1200 52 V120 H0Z' fill='%23F5C542'/%3E%3C/svg%3E")}
 .logo{gap:14px}
 .logo .mk{width:1.05em;height:1.05em;flex:none}
 .logo b{font-family:var(--head);font-weight:700;color:var(--accent);font-size:1.05em;letter-spacing:.01em;text-shadow:0 0 30px var(--glow)}
