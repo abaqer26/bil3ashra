@@ -232,6 +232,28 @@ body::after{content:"";position:fixed;inset:auto 0 0 0;height:110px;pointer-even
 .emo button{background:var(--bg);border:1.5px solid var(--line);border-radius:10px;font-size:22px;width:44px;height:44px;padding:0;line-height:1}
 .emo button.on{border-color:var(--c);background:var(--cs);transform:scale(1.08)}
 .end .w .cup{display:block;font-size:.7em}
+/* لوحة الاختيار */
+.picker{text-align:center;font-family:var(--head);font-size:clamp(26px,3.6vw,42px);color:var(--c);margin:6px 0 14px;line-height:1.3}
+.picker span{color:var(--text);font-size:.7em}
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px}
+.bcat{background:var(--panel);border:1.5px solid var(--line);border-radius:22px;padding:12px;display:grid;grid-template-columns:minmax(0,64px) minmax(0,1fr) minmax(0,64px);gap:10px;align-items:center}
+.bcat.spent{opacity:.45}
+.bcat .mid{display:grid;justify-items:center;text-align:center;gap:6px;min-width:0}
+.bcat .ic{font-size:clamp(44px,5.2vw,66px);line-height:1.1}
+.bcat .nm{font-family:var(--head);font-size:19px;line-height:1.3;background:var(--a);color:var(--accent-ink);padding:3px 12px;border-radius:10px;max-width:100%;overflow-wrap:anywhere}
+.bcat small{color:var(--muted);font-size:13px}
+.tiles{display:grid;gap:8px}
+.tile{height:54px;border-radius:999px;background:var(--panel2);border:1.5px solid var(--line);font-family:var(--head);font-size:26px;color:var(--text);transition:transform .15s,border-color .15s}
+.tile:not(:disabled):hover,.tile:not(:disabled):focus-visible{border-color:var(--a);transform:scale(1.06)}
+.tile.used{opacity:1;font-size:22px}
+.tile.u0{background:var(--a-soft);border-color:var(--a)} .tile.u1{background:var(--b-soft);border-color:var(--b)}
+.bscore{margin-top:16px}
+.bscore .team{min-width:220px;opacity:.7} .bscore .team.turn{opacity:1}
+.rcat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px;margin-bottom:10px}
+.rcat .rn{font-weight:700;margin-bottom:8px}
+.rcat .rt{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.rcat .tile{height:48px;font-size:22px}
+@media (max-width:520px){.bcat{grid-template-columns:minmax(0,52px) minmax(0,1fr) minmax(0,52px)}.tile{height:48px;font-size:22px}}
 /* طبقات فوق اللعبة: الافتتاحية، وضع العرض، الصيدة الذهبية، بطاقة النتيجة */
 .ovl{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:var(--bg);
   padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
@@ -450,7 +472,7 @@ function cands(text){
 /* ===================== الشاشات ===================== */
 function render(){
   save();
-  ({ setup:viewSetup, qr:viewQR, question:viewQuestion, end:viewEnd }[S.screen])();
+  ({ setup:viewSetup, qr:viewQR, board:viewBoard, question:viewQuestion, end:viewEnd }[S.screen])();
   if(S.screen === "end" && lastScreen !== "end") sfx("fan");
   lastScreen = S.screen;
   publish();
@@ -615,12 +637,39 @@ function viewQuestion(){
         <button class="btn ghost sm" data-act="swap">بدّل الدور</button>
         <button class="btn ghost sm" data-act="endq">اكشف الباقي</button>
         ${canRef() ? `<button class="btn ghost sm" data-act="refon">${S.hadRef ? "رجّع الحكم" : "أضف حكم من الجوال"}</button>` : ""}`
-      : `<button class="btn" data-act="next">${S.qi + 1 < S.order.length ? "السؤال التالي" : "النتيجة النهائية"}</button>`}
+      : `<button class="btn" data-act="next">${S.done ? (boardLeft() ? "رجوع للوحة" : "النتيجة النهائية") : S.qi + 1 < S.order.length ? "السؤال التالي" : "النتيجة النهائية"}</button>`}
       ${U.length ? `<button class="btn ghost sm" data-act="undo">تراجع عن آخر حركة</button>` : ""}
     </div>
     ${live && refOn() && showQR ? `<div class="card" style="margin-top:12px">${qrBox()}</div>` : ""}`;
   paintTimer();
   const inp = document.getElementById("ans"); if(inp && !peek) inp.focus();
+}
+
+// اللوحة: لكل فئة بطاقة فيها إيموجيها واسمها، وعلى الجنبين ٦ مربعات مرقمة (١–٣ يمين، ٤–٦ يسار)
+function viewBoard(){
+  const ids = [...new Set(S.order.map(o => o.c))], p = S.picker;
+  const tile = (j, k) => { const by = S.done[j];
+    return `<button class="tile ${by !== undefined ? "used u" + by : ""}" ${by !== undefined ? "disabled" : ""} data-tile="${j}" aria-label="${esc(cat(S.order[j].c).name)} رقم ${fmt(k + 1)}">${by !== undefined ? emo(by) : fmt(k + 1)}</button>`; };
+  $app.innerHTML = `
+    <div class="qtop">
+      <span class="tag">باقي ${fmt(boardLeft())} من ${fmt(S.order.length)} سؤال</span>
+      ${soundBtn()}${themeBtn()}
+      ${refOn() ? `<button class="btn ghost sm ${showQR ? "on" : ""}" data-act="qr">كود الحكم</button>` : ""}
+      <button class="btn ghost sm" data-act="quit">إنهاء الجولة</button>
+    </div>
+    <div class="picker" style="--c:var(--${p ? "b" : "a"})">${esc(TN(p))} <span>يختارون فئة ورقم</span></div>
+    <div class="board">${ids.map(id => {
+      const c = cat(id), js = S.order.map((o, j) => o.c === id ? j : -1).filter(j => j >= 0), left = js.filter(j => S.done[j] === undefined).length;
+      const right = js.slice(0, 3), leftCol = js.slice(3, 6);
+      return `<div class="bcat ${left ? "" : "spent"}">
+        <div class="tiles">${right.map((j) => tile(j, js.indexOf(j))).join("")}</div>
+        <div class="mid"><span class="ic">${catIcon(c)}</span><span class="nm">${esc(c.name)}</span><small>${left ? "باقي " + fmt(left) : "خلصت"}</small></div>
+        <div class="tiles">${leftCol.map((j) => tile(j, js.indexOf(j))).join("")}</div>
+      </div>`; }).join("")}</div>
+    <div class="final bscore">${[0,1].map(i => `<div class="team ${i === p ? "turn" : ""}" style="--c:var(--${i ? "b" : "a"});--cs:var(--${i ? "b" : "a"}-soft)"><div class="nm">${esc(TN(i))}</div><div class="sc">${fmt(S.score[i])}</div>
+      <div class="muted sm">تلميح ${fmt(HINTS - S.used[i].hint)} · ${S.used[i].pass ? "الباس انستخدم" : "باس"} · ${S.used[i].dbl ? "الجوابين انستخدم" : "جوابين"}</div></div>`).join("")}</div>
+    ${U.length ? `<div class="row center tools"><button class="btn ghost sm" data-act="undo">تراجع عن آخر حركة</button></div>` : ""}
+    ${refOn() && showQR ? `<div class="card" style="margin-top:12px">${qrBox()}</div>` : ""}`;
 }
 
 function viewEnd(){
@@ -674,10 +723,15 @@ function startGame(){
   // كل فئة مختارة تنلعب PER_CAT أسئلة منها (أو كل اللي فيها لو أقل)، واللي ما انلعب قبل له الأولوية
   S.order = S.picked.flatMap(id => pickLists(cat(id)).map(l => ({ c:id, l, t:cat(id).lists[l].t })));
   U = []; S.hadRef = !!S.ref;
-  S.screen = "question"; startQuestion();
+  S.done = {}; S.picker = 0; S.screen = "board"; S.q = null; bump();   // اللوحة: كل فريق يختار فئة ورقم بدوره
+}
+// الفريق اللي عليه الدور يختار مربع من اللوحة، ويبدأ هو الجواب
+function pickTile(i){
+  if(S.screen !== "board" || !S.order[i] || (S.done || {})[i] !== undefined) return;
+  S.done[i] = S.picker; S.qi = i; S.screen = "question"; startQuestion();
 }
 function startQuestion(){
-  S.q = { turn:S.qi % 2, got:{}, wrong:0, dbl:false, risk:false, over:false, rl:S.roundMin * 60, paused:true, fresh:true };
+  S.q = { turn:S.done ? S.picker : S.qi % 2, got:{}, wrong:0, dbl:false, risk:false, over:false, rl:S.roundMin * 60, paused:true, fresh:true };
   bump(); msg = { k:"", t:"اقروا السؤال، ولما تكونون جاهزين اضغطوا «ابدأ» — الوقت واقف" }; peek = false; startTimer();
 }
 function endQuestion(){
@@ -770,13 +824,13 @@ function useLife(k){
 // ختم الحركة: يزيد مع كل تغيير في اللعب. أمر الحكم اللي معه ختم قديم (ضغطة مكررة أو متأخرة) ينرفض.
 function bump(){ S.seq = (S.seq || 0) + 1; }
 function snap(){
-  U.push(JSON.stringify({ score:S.score, used:S.used, q:S.q, qi:S.qi, screen:S.screen, left, log:S.log }));
+  U.push(JSON.stringify({ score:S.score, used:S.used, q:S.q, qi:S.qi, screen:S.screen, left, log:S.log, done:S.done, picker:S.picker }));
   if(U.length > 20) U.shift();
 }
 function undo(){
   if(!U.length) return;
   const s = JSON.parse(U.pop());
-  S.score = s.score; S.used = s.used; S.q = s.q; S.qi = s.qi; S.screen = s.screen; if(s.log) S.log = s.log;
+  S.score = s.score; S.used = s.used; S.q = s.q; S.qi = s.qi; S.screen = s.screen; if(s.log) S.log = s.log; if(s.done) S.done = s.done; if(s.picker !== undefined) S.picker = s.picker;
   bump(); peek = false; stopTimer();
   if(S.screen === "question" && S.q && !S.q.over){ startTimer(); left = s.left; }
   msg = { k:"", t:"رجعنا عن آخر حركة" };
@@ -791,8 +845,9 @@ function sane(){
   try{
     if(!S || typeof S !== "object" || !Array.isArray(S.picked) || !Array.isArray(S.names)) throw 0;
     S.picked = S.picked.filter(id => cat(id));
-    if(S.screen === "question" || S.screen === "end" || S.screen === "qr"){
+    if(S.screen === "question" || S.screen === "end" || S.screen === "qr" || S.screen === "board"){
       if(S.screen !== "qr" && (!Array.isArray(S.order) || !S.order.length)) throw 0;
+      if(S.screen === "board" && (!S.done || typeof S.done !== "object")) throw 0;
       (S.order || []).forEach(o => { const c = cat(o.c), l = c && c.lists[o.l]; if(!l || (o.t && l.t !== o.t)) throw 0; });
       if(S.screen === "question" && (!S.q || !S.order[S.qi])) throw 0;
       if(S.screen === "qr" && !S.picked.length) throw 0;
@@ -802,9 +857,21 @@ function sane(){
     S = Object.assign(fresh(), Array.isArray(o.names) && o.names.length === 2 ? { names:o.names } : {}, { picked:Array.isArray(o.picked) ? o.picked.filter(id => cat(id)) : [] });
   }
 }
-function advance(){ bump(); S.qi++; if(S.qi >= S.order.length) S.screen = "end"; else startQuestion(); }
+function advance(){
+  bump();
+  if(S.done){                                                        // نظام اللوحة: نرجع للوحة والدور ينقلب
+    if(Object.keys(S.done).length >= S.order.length){ S.screen = "end"; return; }
+    S.picker = 1 - S.picker; S.screen = "board"; msg = null; return;
+  }
+  S.qi++; if(S.qi >= S.order.length) S.screen = "end"; else startQuestion();
+}
+const boardLeft = () => S.order.length - Object.keys(S.done || {}).length;
 // «فئة ٢ من ٣ · سؤال ٤ من ٦»
 function progress(){
+  if(S.done){
+    const o = S.order[S.qi], pos = S.order.filter((x, j) => x.c === o.c && j <= S.qi).length;
+    return `${cat(o.c).name} · رقم ${fmt(pos)} · سؤال ${fmt(Object.keys(S.done).length)} من ${fmt(S.order.length)}`;
+  }
   const o = S.order[S.qi], cats = [...new Set(S.order.map(x => x.c))];
   const inCat = S.order.filter(x => x.c === o.c), k = S.order.slice(0, S.qi + 1).filter(x => x.c === o.c).length;
   return `فئة ${fmt(cats.indexOf(o.c) + 1)} من ${fmt(cats.length)} · سؤال ${fmt(k)} من ${fmt(inCat.length)}`;
@@ -814,6 +881,9 @@ function progress(){
 function publish(){
   if(!canRef()) return;
   const st = { screen:S.screen, names:[TN(0), TN(1)], score:S.score, ref:!!S.ref, seq:S.seq || 0, undo:U.length > 0 };
+  if(S.screen === "board") Object.assign(st, { picker:S.picker, left:boardLeft(), total:S.order.length,
+    cats:[...new Set(S.order.map(o => o.c))].map(id => ({ n:catIcon(cat(id)) + " " + cat(id).name,
+      tiles:S.order.map((o, j) => o.c === id ? { i:j, by:S.done[j] } : null).filter(Boolean) })) });
   if(S.screen === "question"){
     const L = curList(), q = S.q;
     Object.assign(st, { qi:S.qi, total:S.order.length, progress:progress(), title:L.t, turn:q.turn, over:q.over, risk:q.risk, paused:!!q.paused, fresh:!!q.fresh,
@@ -855,9 +925,10 @@ function p2pInit(){
   if(!p2p.beat) p2p.beat = setInterval(() => p2p.conns.forEach(c => { try{ if(c.open) c.send({ p:1 }); }catch(e){} }), 3000);   // نبضة: جوال الحكم يعرف إن الشاشة حيّة
 }
 function applyCmd(c){
-  if(!refOn() || !c || (S.screen !== "question" && !(S.screen === "end" && c.t === "undo"))) return;
+  if(!refOn() || !c || !(S.screen === "question" || S.screen === "board" || (S.screen === "end" && c.t === "undo"))) return;
   if(c.s !== undefined && c.s !== (S.seq || 0)) return;                    // أمر قديم: الحالة تغيّرت من بعد ما انضغط
   if(c.t === "undo"){ undo(); return; }
+  if(S.screen === "board"){ if(c.t === "pick" && Number.isInteger(c.i)){ snap(); pickTile(c.i); } return; }
   const q = S.q;
   if(q.over){ if(c.t === "next"){ snap(); advance(); } return; }
   if(c.t === "pause"){ togglePause(); return; }
@@ -948,6 +1019,15 @@ function refApp(){
     const head = `<div class="row center" style="margin-bottom:6px">${themeBtn()}</div><div class="row" style="justify-content:space-between;font-weight:800">
       <span style="color:${col(0)}">${esc(st.names[0])}: ${fmt(st.score[0])}</span>
       <span style="color:${col(1)}">${esc(st.names[1])}: ${fmt(st.score[1])}</span></div>`;
+    if(st.screen === "board" && st.ref){
+      $app.innerHTML = `<div class="ref">${head}
+        <div class="who" style="color:${col(st.picker)}">${esc(st.names[st.picker])} يختارون</div>
+        <div class="muted" style="text-align:center;margin-bottom:10px">باقي ${fmt(st.left)} من ${fmt(st.total)} — اضغط الفئة والرقم اللي اختاروه</div>
+        ${st.cats.map(c => `<div class="rcat"><div class="rn">${esc(c.n)}</div><div class="rt">${c.tiles.map((t, k) =>
+          `<button class="tile ${t.by != null ? "used u" + t.by : ""}" ${t.by != null ? "disabled" : ""} data-r='{"t":"pick","i":${t.i}}'>${fmt(k + 1)}</button>`).join("")}</div></div>`).join("")}
+        ${st.undo ? `<div class="bar"><button class="btn ghost" style="grid-column:1/-1" data-r='{"t":"undo"}'>تراجع عن آخر حركة</button></div>` : ""}
+      </div>`; return;
+    }
     if(st.screen !== "question" || !st.ref){
       $app.innerHTML = `<div class="ref">${head}<div class="end"><div class="muted">${
         st.screen === "end" ? "خلصت اللعبة" : st.screen !== "question" ? "أنت الحكم. بانتظار بداية الجولة…" : "الجولة شغّالة بدون حكم"}</div></div></div>`; return;
@@ -1157,6 +1237,7 @@ $app.addEventListener("click", e => {
   else if(d.act === "hist-yes"){ H = {}; saveHist(); }
   else if(d.act === "sound"){ sound = !sound; try{ localStorage.setItem(SKEY, sound ? "1" : "0"); }catch(e){} if(sound){ audio(); sfx("tick"); } }
   else if(d.act === "card"){ makeCard(); return; }
+  else if(d.tile !== undefined){ snap(); pickTile(+d.tile); }
   else if(d.act === "undo") undo();
   else if(d.act === "pause") togglePause();
   else if(d.act === "refoff"){ S.ref = false; showQR = false; msg = { k:"", t:"كمّلتوا بدون حكم — الأجوبة تنكتب من الشاشة" }; }
