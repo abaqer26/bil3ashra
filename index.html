@@ -368,14 +368,16 @@ function markPlayed(id, t){ const p = played(id).filter(x => x !== t); p.push(t)
 const shuffle = a => a.map(x => [Math.random(), x]).sort((x, y) => x[0] - y[0]).map(x => x[1]);
 // يختار أسئلة الفئة للجولة: اللي ما انلعب أول، ولو ما كفّى يكمّل من اللي انلعب (الأقدم أول).
 // ولو الفئة انلعبت كلها ينمسح سجلها وتبدأ من جديد.
+// سهولة السؤال: k = كم جواب من العشرة تطلعه جمعة عادية (من تقييم قسم الأسئلة). كل ما زاد أسهل.
+const ease = L => typeof L.k === "number" ? L.k : 5;
 function pickLists(c){
   const all = c.lists.map((_, i) => i), need = Math.min(PER_CAT, all.length);
   const p = played(c.id).filter(t => c.lists.some(l => l.t === t));
   const age = i => p.indexOf(c.lists[i].t);
-  const fresh = shuffle(all.filter(i => age(i) < 0));
+  const fresh = shuffle(all.filter(i => age(i) < 0)).sort((x, y) => ease(c.lists[y]) - ease(c.lists[x]));   // الأسهل أول، والصعب يطلع لما يخلص السهل
   const old = all.filter(i => age(i) >= 0).sort((x, y) => age(x) - age(y));
   H[c.id] = all.length && !fresh.length ? [] : p; saveHist();
-  return shuffle(fresh.concat(old).slice(0, need));
+  return fresh.concat(old).slice(0, need).sort((x, y) => ease(c.lists[y]) - ease(c.lists[x]));   // ترتيب اللوحة: رقم ١ أسهل سؤال ورقم ٦ أصعب
 }
 
 /* ===================== الصوت (Web Audio، على الشاشة بس) ===================== */
