@@ -450,7 +450,8 @@ const fmt = n => n.toLocaleString("ar-EG");
 const cat = id => BANK.find(c => c.id === id);
 // إيموجي الفئات. الفئات الدينية لها رمز ۞ بدل الإيموجي، توقيراً.
 const ICON = { geo:"🌍", arb:"🏜️", isl:"۞", qrn:"۞", ahl:"۞", spo:"🏅", sci:"🔬", num:"🔢", lng:"🔤", fb:"⚽", tec:"💻", usa:"🗽", afr:"🦁",
-  his:"🏛️", spt:"📺", kth:"🎭", kdr:"🎬", kw:"🇰🇼", kpl:"🏟️", clas:"📋", cars:"🏎️", gk:"💡", food:"🍔", anm:"🐪" };
+  his:"🏛️", spt:"📺", kth:"🎭", kdr:"🎬", kw:"🇰🇼", kpl:"🏟️", clas:"📋", cars:"🏎️", gk:"💡", food:"🍔", anm:"🐪",
+  nba:"🏀", mov:"🍿", spc:"🚀", eu:"🇪🇺", vg:"🎮", toon:"🐼", hero:"🦸", epl:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", stars:"🌟", cap:"🏙️" };
 const catIcon = c => ICON[c.id] || c.icon || "🎯";
 // إيموجي الفرق: كل فريق يختار واحد
 const EMO = ["🦅","🐆","🐎","🐪","🔥","⚡","🌪️","🎯"];
