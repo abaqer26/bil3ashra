@@ -448,7 +448,7 @@ input[type=text]:focus{outline:none;border-color:var(--a-fill);box-shadow:0 0 14
 <body>
 <div class="wrap" id="app"></div>
 
-<script src="bank.js?v=cdb8ceac"></script>
+<script src="bank.js?v=a35ac60f"></script>
 <script>
 // بنك الأسئلة (BANK و US و UK) انتقل إلى ملف bank.js
 
@@ -686,6 +686,16 @@ function viewSetup(){
         </div>
       </div>
       <div class="card">
+        <h2>٤. منو يجاوب؟</h2>
+        <div class="row seg">
+          <button class="${S.solo ? "" : "on"}" data-act="solo-off">الفريق كله</button>
+          <button class="${S.solo ? "on" : ""}" data-act="solo-on">لاعب واحد يجاوب</button>
+        </div>
+        <div class="muted sm" style="margin-top:10px;line-height:1.8">${S.solo
+          ? "قبل كل سؤال كل فريق يختار لاعب واحد يجاوب عنه، والباقي ساكتين. ولكل فريق «استشارة الفريق» مرة وحدة باللعبة: يتشاورون كلهم على جواب واحد."
+          : "الفريق كله يتشاور ويجاوب. (الأسئلة موزونة على هالنظام.)"}</div>
+      </div>
+      <div class="card">
         <h2>القوانين بالتفصيل</h2>
         <ul class="rules">
           <li>كل سؤال له <b>١٠ أجوبة مخفية</b>. الجواب الأشهر نقاطه أقل، والأندر نقاطه أكثر.</li>
@@ -694,6 +704,8 @@ function viewSetup(){
           <li><b>تلميح</b> (${fmt(HINTS)} في الجولة): يعطيك معلومة عن أشهر جواب باقي، أو أول حرف منه وعدد حروفه. الجواب ما ينكشف، ولو جاوبته تاخذ نقاطه كاملة.</li>
           <li><b>باس</b> (مرة): ترمي الدور على الخصم بمخاطرة — لو غلط ينخصم منه ${fmt(PASS_RISK)}.</li>
           <li><b>جوابين</b> (مرة): تجاوب مرتين في نفس الدور.</li>
+          ${S.solo ? `<li><b>لاعب واحد يجاوب:</b> قبل كل سؤال كل فريق يختار لاعبه، وهو بس اللي يجاوب. <b>استشارة الفريق</b> (مرة باللعبة): الفريق كله يتشاور على جواب واحد.</li>` : ""}
+          <li><b>البطاقات السرية:</b> ${fmt(N_CARDS)} بطاقات مقلوبة للفريقين. الفريق اللي عليه الدور يقدر يسحب وحدة قبل ما يختار سؤاله، وممكن تفيده أو تضره.</li>
           <li><b>الوسائل</b> يطلبها الفريق بصوته والحكم يفعّلها من جواله، أو تنضغط من الشاشة.</li>
         </ul>
       </div>
@@ -732,6 +744,7 @@ function teamBox(i, live, bad){
       <button data-life="hint" ${mine && u.hint < HINTS ? "" : "disabled"}>تلميح ${fmt(HINTS - u.hint)}</button>
       <button data-life="pass" ${mine && !u.pass && !q.risk ? "" : "disabled"}>باس</button>
       <button data-life="dbl" class="${mine && q.dbl ? "act" : ""}" ${mine && !u.dbl ? "" : "disabled"}>جوابين</button>
+      ${S.solo ? `<button data-life="team" ${mine && !u.team ? "" : "disabled"}>استشارة الفريق</button>` : ""}
     </div>
   </div>`;
 }
@@ -748,7 +761,8 @@ function viewQuestion(){
       <span class="tag">${catIcon(c)} ${esc(c.name)}</span>
       <span class="tag">${esc(progress())}</span>
       <span class="tag" id="round"></span>
-      ${q.cd ? `<span class="tag ctag ${CARDS[q.cd.id].g ? "good" : "bad"}">🃏 ${esc(CARDS[q.cd.id].n)} · ${esc(S.names[q.cd.team])}</span>` : ""}
+      ${S.solo ? `<span class="tag">👤 لاعب واحد يجاوب</span>` : ""}
+      ${q.cd ? `<span class="tag ctag ${CD(q.cd.id).g ? "good" : "bad"}">🃏 ${esc(CD(q.cd.id).n)} · ${esc(S.names[q.cd.team])}</span>` : ""}
       <span class="tag">${hasTraps(L)
         ? (() => { const left = L.x.filter((_, i) => !(q.traps && q.traps[i])).length; return left ? "● ".repeat(left) + (left === 1 ? "فخ واحد مخفي" : left === 2 ? "فخّين مخفيين" : fmt(left) + " فخاخ مخفية") : "الفخاخ انكشفت كلها"; })()
         : q.wrong < TRAPS.length ? "● ".repeat(TRAPS.length - q.wrong) + "الفخ الجاي −" + fmt(TRAPS[q.wrong]) : "الفخاخ خلصت"}</span>
@@ -821,8 +835,8 @@ function viewBoard(){
       <div class="sc-h">البطاقات السرية <small>${cardsLeft() ? (S.drew ? "سحبتوا بطاقة بهالدور" : `باقي ${fmt(cardsLeft())} — ${esc(S.names[p])} يقدرون يسحبون وحدة قبل السؤال`) : "خلصت"}</small></div>
       <div class="sc-r">${S.cards.map((c, k) => c.by === undefined
         ? `<button class="scard" data-card="${k}" ${S.drew ? "disabled" : ""} aria-label="بطاقة سرية ${fmt(k + 1)}"><b>؟</b></button>`
-        : `<div class="scard open ${CARDS[c.id].g ? "good" : "bad"}" style="--c:var(--${c.by ? "b" : "a"}-fill)"><b>${esc(CARDS[c.id].n)}</b><small>${esc(emo(c.by))} ${esc(S.names[c.by])}</small></div>`).join("")}</div>
-      ${S.note ? `<div class="sc-n ${CARDS[S.note.id].g ? "good" : "bad"}">🃏 «${esc(CARDS[S.note.id].n)}» لـ ${esc(S.names[S.note.team])}: ${esc(CARDS[S.note.id].d)}</div>` : ""}
+        : `<div class="scard open ${CD(c.id).g ? "good" : "bad"}" style="--c:var(--${c.by ? "b" : "a"}-fill)"><b>${esc(CD(c.id).n)}</b><small>${esc(emo(c.by))} ${esc(S.names[c.by])}</small></div>`).join("")}</div>
+      ${S.note ? `<div class="sc-n ${CD(S.note.id).g ? "good" : "bad"}">🃏 «${esc(CD(S.note.id).n)}» لـ ${esc(S.names[S.note.team])}: ${esc(CD(S.note.id).d)}</div>` : ""}
     </div>` : ""}
     <div class="board">${ids.map(id => {
       const c = cat(id), js = S.order.map((o, j) => o.c === id ? j : -1).filter(j => j >= 0), left = js.filter(j => S.done[j] === undefined).length;
@@ -833,7 +847,7 @@ function viewBoard(){
         <div class="tiles">${leftCol.map((j) => tile(j, js.indexOf(j))).join("")}</div>
       </div>`; }).join("")}</div>
     <div class="final bscore">${[0,1].map(i => `<div class="team ${i === p ? "turn" : ""}" style="--c:var(--${i ? "b" : "a"});--cs:var(--${i ? "b" : "a"}-soft)"><div class="nm">${esc(TN(i))}</div><div class="sc">${fmt(S.score[i])}</div>
-      <div class="muted sm">تلميح ${fmt(HINTS - S.used[i].hint)} · ${S.used[i].pass ? "الباس انستخدم" : "باس"} · ${S.used[i].dbl ? "الجوابين انستخدم" : "جوابين"}</div></div>`).join("")}</div>
+      <div class="muted sm">تلميح ${fmt(HINTS - S.used[i].hint)} · ${S.used[i].pass ? "الباس انستخدم" : "باس"} · ${S.used[i].dbl ? "الجوابين انستخدم" : "جوابين"}${S.solo ? " · " + (S.used[i].team ? "الاستشارة انستخدمت" : "استشارة الفريق") : ""}</div></div>`).join("")}</div>
     ${U.length ? `<div class="row center tools"><button class="btn ghost sm" data-act="undo">تراجع عن آخر حركة</button></div>` : ""}
     ${refOn() && showQR ? `<div class="card" style="margin-top:12px">${qrBox()}</div>` : ""}`;
 }
@@ -919,6 +933,9 @@ const CARDS = {
   19:{ n:"الخصم يختار", g:0, d:"الخصم يختار لكم الفئة والرقم، وأنتم تجاوبون" },
   20:{ n:"قلب الطاولة", g:0, now:1, d:"الفريقين تبادلوا النقاط" },
 };
+// نظام «لاعب واحد يجاوب»: بطاقة «واحد بس» ما لها معنى، فتصير عكسها وتفيد
+const CARD18_SOLO = { n:"الكل يجاوب", g:1, d:"فريقكم كله يشارك بالجواب بالسؤال الجاي، مو لاعب واحد" };
+const CD = id => (+id === 18 && S.solo) ? CARD18_SOLO : CARDS[id];
 const N_CARDS = 4;
 function dealCards(){
   const ids = Object.keys(CARDS).map(Number);
@@ -931,7 +948,7 @@ const cdOn = (id, t) => { const c = S.q && S.q.cd; return !!(c && c.id === id &&
 function drawCard(k){
   const c = (S.cards || [])[k], p = S.picker;
   if(S.screen !== "board" || !c || c.by !== undefined || S.drew) return;
-  const C = CARDS[c.id];
+  const C = CD(c.id);
   c.by = p; S.drew = true; bump();
   if(c.id === 2) S.score[p] += 200;
   else if(c.id === 3){ S.score[p] += 300; S.score[1 - p] -= 300; }
@@ -949,7 +966,7 @@ function pickTile(i){
 }
 function startQuestion(){
   S.q = { turn:S.done ? S.picker : S.qi % 2, got:{}, wrong:0, dbl:false, risk:false, over:false, rl:S.roundMin * 60, paused:true, fresh:true };
-  bump(); msg = { k:"", t:"اقروا السؤال، ولما تكونون جاهزين اضغطوا «ابدأ» — الوقت واقف" }; peek = false; startTimer();
+  bump(); msg = { k:"", t:S.solo ? "كل فريق يختار لاعب واحد يجاوب عنه بهالسؤال. لما تجهزون اضغطوا «ابدأ» — الوقت واقف" : "اقروا السؤال، ولما تكونون جاهزين اضغطوا «ابدأ» — الوقت واقف" }; peek = false; startTimer();
   // بطاقة سرية انسحبت قبل هالسؤال: تأثيرها يبدأ هني
   if(S.pend){
     const cd = S.q.cd = { id:S.pend.id, team:S.pend.team }, L = curList(); S.pend = null;
@@ -959,7 +976,7 @@ function startQuestion(){
     if(cd.id === 15) left = Math.min(10, left);
     if(cd.id === 10) S.q.dbl = true;
     if(cd.id === 7 || cd.id === 15 || cd.id === 10) cd.used = true;
-    msg = { k:"", t:`🃏 بطاقة «${CARDS[cd.id].n}» على ${S.names[cd.team]}: ${CARDS[cd.id].d} — اضغطوا «ابدأ» لما تجهزون` };
+    msg = { k:"", t:`🃏 بطاقة «${CD(cd.id).n}» على ${S.names[cd.team]}: ${CD(cd.id).d} — ${S.solo ? "كل فريق يختار لاعبه، و" : ""}اضغطوا «ابدأ» لما تجهزون` };
   }
 }
 function endQuestion(){
@@ -1058,6 +1075,7 @@ function useLife(k){
   }
   if(k === "pass" && !u.pass){ u.pass = true; msg = { k:"", t:`${S.names[q.turn]} رمى الدور — الغلط الحين يخصم ${fmt(PASS_RISK)}` }; nextTurn(true); }
   if(k === "dbl" && !u.dbl){ u.dbl = true; q.dbl = true; bump(); }
+  if(k === "team" && S.solo && !u.team){ u.team = true; bump(); msg = { k:"", t:`🗣️ استشارة الفريق: ${S.names[q.turn]} كلهم يتشاورون على هالجواب` }; }
 }
 
 // ختم الحركة: يزيد مع كل تغيير في اللعب. أمر الحكم اللي معه ختم قديم (ضغطة مكررة أو متأخرة) ينرفض.
@@ -1122,16 +1140,16 @@ function publish(){
   if(!canRef()) return;
   const st = { screen:S.screen, names:[TN(0), TN(1)], score:S.score, ref:!!S.ref, seq:S.seq || 0, undo:U.length > 0 };
   if(S.screen === "board") Object.assign(st, { picker:S.picker, left:boardLeft(), total:S.order.length, drew:!!S.drew,
-    cards:(S.cards || []).map(c => c.by === undefined ? {} : { by:c.by, n:CARDS[c.id].n, g:CARDS[c.id].g }),
-    note:S.note ? `«${CARDS[S.note.id].n}» لـ ${S.names[S.note.team]}: ${CARDS[S.note.id].d}` : "", opp:!!(S.pend && S.pend.id === 19),
+    cards:(S.cards || []).map(c => c.by === undefined ? {} : { by:c.by, n:CD(c.id).n, g:CD(c.id).g }),
+    note:S.note ? `«${CD(S.note.id).n}» لـ ${S.names[S.note.team]}: ${CD(S.note.id).d}` : "", opp:!!(S.pend && S.pend.id === 19),
     cats:[...new Set(S.order.map(o => o.c))].map(id => ({ n:catIcon(cat(id)) + " " + cat(id).name,
       tiles:S.order.map((o, j) => o.c === id ? { i:j, by:S.done[j] } : null).filter(Boolean) })) });
   if(S.screen === "question"){
     const L = curList(), q = S.q;
-    Object.assign(st, { qi:S.qi, total:S.order.length, progress:progress(), title:L.t, cd:q.cd ? `«${CARDS[q.cd.id].n}» على ${S.names[q.cd.team]}: ${CARDS[q.cd.id].d}` : "", nolife:!!(q.cd && q.cd.id === 16 && q.cd.team === q.turn), turn:q.turn, over:q.over, risk:q.risk, paused:!!q.paused, fresh:!!q.fresh,
+    Object.assign(st, { qi:S.qi, total:S.order.length, progress:progress(), title:L.t, cd:q.cd ? `«${CD(q.cd.id).n}» على ${S.names[q.cd.team]}: ${CD(q.cd.id).d}` : "", nolife:!!(q.cd && q.cd.id === 16 && q.cd.team === q.turn), turn:q.turn, over:q.over, risk:q.risk, paused:!!q.paused, fresh:!!q.fresh,
       trap: q.risk ? PASS_RISK : hasTraps(L) ? 0 : (TRAPS[q.wrong] || 0),
       traps: hasTraps(L) ? L.x.map((x, i) => ({ n:ansName(x), p:TRAPS[i] || 0, hit:!!(q.traps && q.traps[i]) })) : [],
-      life: { hint:HINTS - S.used[q.turn].hint, pass:!S.used[q.turn].pass && !q.risk, dbl:!S.used[q.turn].dbl, dblOn:q.dbl },
+      life: { hint:HINTS - S.used[q.turn].hint, pass:!S.used[q.turn].pass && !q.risk, dbl:!S.used[q.turn].dbl, dblOn:q.dbl, solo:!!S.solo, team:!!S.solo && !S.used[q.turn].team },
       answers: L.a.map((a, i) => ({ n:ansName(a), p:(i + 1) * STEP, by:q.got[i], h:q.hints && q.hints[i] ? hintFor(L, i) : undefined })) });
   }
   if(net) fetch("/state?k=" + net.key, { method:"POST", body:JSON.stringify(st) }).then(r => { if(r.status === 403) refreshNet(); }).catch(() => {});
@@ -1185,7 +1203,7 @@ function applyCmd(c){
   else if(c.t === "trap" && Number.isInteger(c.i) && hasTraps(curList()) && c.i >= 0 && c.i < curList().x.length && !(q.traps && q.traps[c.i])) miss("", c.i);
   else if(c.t === "endq") endQuestion();
   else if(c.t === "swap") swapTurn();
-  else if(c.t === "life" && ["hint", "pass", "dbl"].includes(c.k)) useLife(c.k);
+  else if(c.t === "life" && ["hint", "pass", "dbl", "team"].includes(c.k)) useLife(c.k);
   if(S.seq === s0 && U.length === n0) U.pop();                             // الأمر ما غيّر شي: لا تحفظ له نسخة تراجع
 }
 // يجيب عنوان ومفتاح الحكم من السيرفر. لو السيرفر انعاد تشغيله (مفتاح جديد) أو تغيّرت الشبكة (عنوان جديد) يتحدّث الكود لحاله.
@@ -1301,6 +1319,7 @@ function refApp(){
         <button ${st.life.hint > 0 ? "" : "disabled"} data-r='{"t":"life","k":"hint"}'>تلميح ${fmt(st.life.hint)}</button>
         <button ${st.life.pass ? "" : "disabled"} data-r='{"t":"life","k":"pass"}'>باس</button>
         <button class="${st.life.dblOn ? "act" : ""}" ${st.life.dbl ? "" : "disabled"} data-r='{"t":"life","k":"dbl"}'>جوابين</button>
+        ${st.life.solo ? `<button ${st.life.team ? "" : "disabled"} data-r='{"t":"life","k":"team"}'>استشارة الفريق</button>` : ""}
       </div>`}
       <div class="bar">${st.over
         ? `<button class="btn" style="grid-column:1/-1" data-r='{"t":"next"}'>${st.qi + 1 < st.total ? "السؤال التالي " : "النتيجة النهائية "}</button>`
@@ -1357,7 +1376,7 @@ function goldBurst(name, team){
 }
 function cardBurst(id, team){
   if(REF) return;
-  const C = CARDS[id], old = document.getElementById("cardrev"); if(old) old.remove();
+  const C = CD(id), old = document.getElementById("cardrev"); if(old) old.remove();
   const el = document.createElement("div"); el.id = "cardrev"; el.className = "ovl " + (C.g ? "good" : "bad");
   el.innerHTML = `<div class="in"><small>${C.g ? "بطاقة تفيدكم" : "بطاقة تضركم"}</small><b>${esc(C.n)}</b><span>${esc(C.d)}</span><i>${esc(TN(team))}</i></div>`;
   el.addEventListener("click", () => closeOvl(el));
@@ -1492,6 +1511,8 @@ $app.addEventListener("click", e => {
   else if(d.act === "start-ref"){ S.ref = true; startGame(); }
   else if(d.act === "start-noref"){ S.ref = false; startGame(); }
   else if(d.act === "back") S.screen = "setup";
+  else if(d.act === "solo-on") S.solo = true;
+  else if(d.act === "solo-off") S.solo = false;
   else if(d.act === "hist-yes"){ H = {}; saveHist(); }
   else if(d.act === "sound"){ sound = !sound; try{ localStorage.setItem(SKEY, sound ? "1" : "0"); }catch(e){} if(sound){ audio(); sfx("tick"); } }
   else if(d.act === "card"){ makeCard(); return; }
@@ -1512,7 +1533,7 @@ $app.addEventListener("click", e => {
   else if(d.act === "endq"){ snap(); endQuestion(); }
   else if(d.act === "swap"){ snap(); swapTurn(); }
   else if(d.act === "quit"){ if(!confirm("تبون تنهون الجولة وتشوفون النتيجة؟")) return; stopTimer(); S.screen = "end"; }
-  else if(d.act === "new"){ stopTimer(); U = []; S = Object.assign(fresh(), { names:S.names, seconds:S.seconds, roundMin:S.roundMin }); }
+  else if(d.act === "new"){ stopTimer(); U = []; S = Object.assign(fresh(), { names:S.names, seconds:S.seconds, roundMin:S.roundMin, solo:!!S.solo }); }
   render();
 });
 
