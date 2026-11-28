@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""سيرفر «تحدّي الربع» — يعرض اللعبة ويربط الشاشة بجوال الحكم على نفس الواي فاي.
+"""سيرفر «بالعشرة» — يعرض اللعبة ويربط الشاشة بجوال الحكم على نفس الواي فاي.
 
 التشغيل:  python3 server.py
 ثم افتح على هذا الجهاز:  http://localhost:8765
 """
-import json, os, secrets, socket, sys, threading
+import json, os, secrets, socket, sys, threading, time
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 HERE = os.path.dirname(os.path.abspath(__file__))
+ref_seen = {}                           # جوال الحكم ← آخر وقت سأل فيه عن الحالة
 KEY = secrets.token_urlsafe(9)          # مفتاح الجلسة: بدونه ما أحد يقدر يتحكم
 LOOPBACK = ("127.0.0.1", "::1", "::ffff:127.0.0.1")
 
@@ -101,11 +102,16 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, json.dumps({"ip": ip, "hist": hist}, ensure_ascii=False).encode())
         if path == "/info" and local:      # للشاشة فقط (نفس الجهاز)
             url = "http://%s:%d/?ref=%s" % (lan_ip(), PORT, KEY)
-            return self.send(200, json.dumps({"key": KEY, "url": url}).encode())
+            now = time.time()
+            with lock:
+                refs = sum(1 for t in ref_seen.values() if now - t < 4)   # جوالات حكم سألت عن الحالة آخر ٤ ثواني
+            return self.send(200, json.dumps({"key": KEY, "url": url, "refs": refs}).encode())
         if not secrets.compare_digest(k, KEY):
             return self.send(403)
         if path == "/state":
             with lock:
+                if not local:
+                    ref_seen[self.client_address[0]] = time.time()
                 return self.send(200, state)
         if path == "/cmds" and local:
             with lock:
@@ -114,8 +120,13 @@ class H(BaseHTTPRequestHandler):
         self.send(404)
 
     def do_POST(self):
-        global state
+        global state, KEY
         path, k, local = self.parts()
+        if path == "/rekey" and local:     # لعبة جديدة: مفتاح جديد، فجوالات الحكام القدام تنفصل
+            with lock:
+                KEY = secrets.token_urlsafe(9)
+                ref_seen.clear()
+            return self.send(204)
         if path == "/played":              # كل جهاز يكتب سجله هو بس (المفتاح عنوانه)
             b = self.body(200_000)
             try:
@@ -155,5 +166,5 @@ class H(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print("تحدّي الربع شغّال — افتح: http://localhost:%d" % PORT, flush=True)
+    print("بالعشرة شغّال — افتح: http://localhost:%d" % PORT, flush=True)
     ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()
