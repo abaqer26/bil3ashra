@@ -418,6 +418,8 @@ input[type=text]:focus{outline:none;border-color:var(--a-fill);box-shadow:0 0 14
 #demo{background:var(--bg)} #demo .cta{color:var(--b)}
 .link.go{color:var(--accent)}
 .handle{color:var(--muted2)}
+.lf button.hot{background:var(--b-fill);color:var(--accent-ink);box-shadow:0 0 14px var(--glow-b)}
+@media (prefers-reduced-motion:no-preference){.lf button.hot{animation:blink 1s ease-in-out infinite}}
 /* البطاقات السرية */
 .scards{margin:0 0 14px;text-align:center}
 .sc-h{font-family:var(--head);font-weight:700;font-size:20px;margin-bottom:8px}
@@ -704,6 +706,8 @@ function viewSetup(){
           <li><b>تلميح</b> (${fmt(HINTS)} في الجولة): يعطيك معلومة عن أشهر جواب باقي، أو أول حرف منه وعدد حروفه. الجواب ما ينكشف، ولو جاوبته تاخذ نقاطه كاملة.</li>
           <li><b>باس</b> (مرة): ترمي الدور على الخصم بمخاطرة — لو غلط ينخصم منه ${fmt(PASS_RISK)}.</li>
           <li><b>جوابين</b> (مرة): تجاوب مرتين في نفس الدور.</li>
+          <li><b>فخ النقاط</b> (مرة باللعبة): تفعّلونه قبل جوابكم. لو الجواب صح، تاخذون نقاطه وتنخصم نفس النقاط من الخصم. لو غلط راح عليكم.</li>
+          <li><b>بوق الجواب</b> (مرة باللعبة): لما الخصم يجاوب صح، قولوا «بوق الجواب» على طول قبل ما أحد يجاوب بعده، ونقاط جوابه كلها تصير لكم.</li>
           ${S.solo ? `<li><b>لاعب واحد يجاوب:</b> قبل كل سؤال كل فريق يختار لاعبه، وهو بس اللي يجاوب. <b>استشارة الفريق</b> (مرة باللعبة): الفريق كله يتشاور على جواب واحد.</li>` : ""}
           <li><b>البطاقات السرية:</b> ${fmt(N_CARDS)} بطاقات مقلوبة للفريقين. الفريق اللي عليه الدور يقدر يسحب وحدة قبل ما يختار سؤاله، وممكن تفيده أو تضره.</li>
           <li><b>الوسائل</b> يطلبها الفريق بصوته والحكم يفعّلها من جواله، أو تنضغط من الشاشة.</li>
@@ -744,6 +748,8 @@ function teamBox(i, live, bad){
       <button data-life="hint" ${mine && u.hint < HINTS ? "" : "disabled"}>تلميح ${fmt(HINTS - u.hint)}</button>
       <button data-life="pass" ${mine && !u.pass && !q.risk ? "" : "disabled"}>باس</button>
       <button data-life="dbl" class="${mine && q.dbl ? "act" : ""}" ${mine && !u.dbl ? "" : "disabled"}>جوابين</button>
+      <button data-life="amb" class="${mine && q.amb ? "act" : ""}" ${mine && !u.amb ? "" : "disabled"}>فخ النقاط</button>
+      <button data-life="steal" class="${q.last && q.last.team !== i && !u.steal ? "hot" : ""}" ${q.last && q.last.team !== i && !u.steal && !q.paused ? "" : "disabled"}>📯 بوق الجواب</button>
       ${S.solo ? `<button data-life="team" ${mine && !u.team ? "" : "disabled"}>استشارة الفريق</button>` : ""}
     </div>
   </div>`;
@@ -847,7 +853,7 @@ function viewBoard(){
         <div class="tiles">${leftCol.map((j) => tile(j, js.indexOf(j))).join("")}</div>
       </div>`; }).join("")}</div>
     <div class="final bscore">${[0,1].map(i => `<div class="team ${i === p ? "turn" : ""}" style="--c:var(--${i ? "b" : "a"});--cs:var(--${i ? "b" : "a"}-soft)"><div class="nm">${esc(TN(i))}</div><div class="sc">${fmt(S.score[i])}</div>
-      <div class="muted sm">تلميح ${fmt(HINTS - S.used[i].hint)} · ${S.used[i].pass ? "الباس انستخدم" : "باس"} · ${S.used[i].dbl ? "الجوابين انستخدم" : "جوابين"}${S.solo ? " · " + (S.used[i].team ? "الاستشارة انستخدمت" : "استشارة الفريق") : ""}</div></div>`).join("")}</div>
+      <div class="muted sm">تلميح ${fmt(HINTS - S.used[i].hint)} · ${S.used[i].pass ? "الباس انستخدم" : "باس"} · ${S.used[i].dbl ? "الجوابين انستخدم" : "جوابين"} · ${S.used[i].amb ? "فخ النقاط انستخدم" : "فخ النقاط"} · ${S.used[i].steal ? "البوق انستخدم" : "بوق الجواب"}${S.solo ? " · " + (S.used[i].team ? "الاستشارة انستخدمت" : "استشارة الفريق") : ""}</div></div>`).join("")}</div>
     ${U.length ? `<div class="row center tools"><button class="btn ghost sm" data-act="undo">تراجع عن آخر حركة</button></div>` : ""}
     ${refOn() && showQR ? `<div class="card" style="margin-top:12px">${qrBox()}</div>` : ""}`;
 }
@@ -986,7 +992,7 @@ function endQuestion(){
 function allFound(){ return Object.keys(S.q.got).length === curList().a.length; }
 function nextTurn(risk){
   const q = S.q;
-  q.dbl = false; q.risk = !!risk; q.turn = 1 - q.turn; bump();
+  q.dbl = false; q.amb = false; q.risk = !!risk; q.turn = 1 - q.turn; bump();
   if(q.cd && q.cd.id === 9 && !q.cd.used && q.turn !== q.cd.team){          // تجميد: الخصم يفوّت أول دور له
     q.cd.used = true; q.turn = q.cd.team; q.risk = false;
     msg = { k:"", t:(msg ? msg.t + " — " : "") + `🧊 ${S.names[1 - q.turn]} متجمدين: الدور يرجع لـ ${S.names[q.turn]}` };
@@ -996,6 +1002,7 @@ function nextTurn(risk){
 // تغيير الدور يدوياً (من الشاشة أو من جوال الحكم): الدور يروح للفريق الثاني بوقت جديد، بدون خصم.
 function swapTurn(){
   const q = S.q; if(!q || q.over) return;
+  q.last = null;
   nextTurn();
   msg = { k:"", t:`الدور صار لـ ${S.names[q.turn]}` };
 }
@@ -1004,6 +1011,8 @@ function award(i){
   if(cdOn(1, q.turn)){ pts *= 2; q.cd.used = true; tagc = " (دبل 🃏)"; }
   else if(cdOn(12, q.turn)){ pts = Math.round(pts / 2); q.cd.used = true; tagc = " (نص النقاط 🃏)"; }
   q.got[i] = q.turn; S.score[q.turn] += pts; peek = false; bump();
+  if(q.amb){ S.score[1 - q.turn] -= pts; tagc += ` — 🪤 فخ النقاط: −${fmt(pts)} من ${S.names[1 - q.turn]}`; }
+  q.last = { i, team:q.turn, pts, amb:!!q.amb }; q.amb = false;                // آخر جواب صح: الخصم يقدر «يبوقه»
   fx.pop = { i, at:Date.now() }; sfx("ok");
   S.log = S.log || { best:null, got:[0,0], traps:[0,0], at:Date.now() };
   S.log.got[q.turn]++;
@@ -1019,6 +1028,7 @@ function award(i){
 const hasTraps = L => Array.isArray(L.x) && L.x.length > 0;
 function miss(text, ti){
   const q = S.q, L = curList();
+  q.last = null;
   q.traps = q.traps || {};
   let pen = 0;
   if(hasTraps(L)){
@@ -1036,7 +1046,7 @@ function miss(text, ti){
   else nextTurn();
 }
 function timeout(){
-  const q = S.q;
+  const q = S.q; q.last = null;
   if(q.risk) return miss("خلص الوقت");
   msg = { k:"no", t:`خلص وقت ${S.names[q.turn]} — راح الدور` };
   nextTurn();
@@ -1063,7 +1073,20 @@ function hintFor(L, i){
   if(n <= 2) return `جواب قصير: ${size}`;                                      // حرف أو رقم: أول حرف يكشفه كله
   return `${hasAl ? "أول حرف بعد «ال»" : "أول حرف"}: «${[...first][0]}» · ${size}`;
 }
+// بوق الجواب: الفريق اللي ما جاوب ياخذ نقاط آخر جواب صح كلها (مرة باللعبة). ينضغط على طول بعد الجواب.
+function stealLast(){
+  const q = S.q, a = q && q.last; if(!a) return;
+  const t = 1 - a.team, u = S.used[t];
+  if(u.steal) return;
+  if(q.cd && q.cd.id === 16 && q.cd.team === t){ msg = { k:"no", t:"🃏 بطاقة «بدون وسائل»: ما تقدرون تستخدمون الوسائل بهالسؤال" }; return; }
+  u.steal = true; S.score[a.team] -= a.pts; S.score[t] += a.pts; q.got[a.i] = t;
+  if(a.amb){ S.score[t] += a.pts; }                                            // لو كان عليه «فخ النقاط»: الخصم اللي انخصم منه يرجع له
+  if(S.log){ S.log.got[a.team]--; S.log.got[t]++; if(S.log.best && S.log.best.a === ansName(curList().a[a.i]) && S.log.best.team === a.team) S.log.best.team = t; }
+  q.last = null; bump(); fx.pop = { i:a.i, at:Date.now() }; sfx("ok");
+  msg = { k:"ok", t:`📯 بوق الجواب! ${TN(t)} خذوا «${ansName(curList().a[a.i])}» و${fmt(a.pts)} نقطة من ${S.names[a.team]}` };
+}
 function useLife(k){
+  if(k === "steal") return stealLast();
   const q = S.q, u = S.used[q.turn], L = curList();
   if(q.cd && q.cd.id === 16 && q.cd.team === q.turn){ msg = { k:"no", t:"🃏 بطاقة «بدون وسائل»: ما تقدرون تستخدمون الوسائل بهالسؤال" }; return; }
   if(k === "hint" && u.hint < HINTS){
@@ -1075,6 +1098,7 @@ function useLife(k){
   }
   if(k === "pass" && !u.pass){ u.pass = true; msg = { k:"", t:`${S.names[q.turn]} رمى الدور — الغلط الحين يخصم ${fmt(PASS_RISK)}` }; nextTurn(true); }
   if(k === "dbl" && !u.dbl){ u.dbl = true; q.dbl = true; bump(); }
+  if(k === "amb" && !u.amb){ u.amb = true; q.amb = true; bump(); msg = { k:"", t:`🪤 فخ النقاط: لو جاوب ${S.names[q.turn]} صح الحين، نقاط الجواب تنخصم من ${S.names[1 - q.turn]}` }; }
   if(k === "team" && S.solo && !u.team){ u.team = true; bump(); msg = { k:"", t:`🗣️ استشارة الفريق: ${S.names[q.turn]} كلهم يتشاورون على هالجواب` }; }
 }
 
@@ -1149,7 +1173,8 @@ function publish(){
     Object.assign(st, { qi:S.qi, total:S.order.length, progress:progress(), title:L.t, cd:q.cd ? `«${CD(q.cd.id).n}» على ${S.names[q.cd.team]}: ${CD(q.cd.id).d}` : "", nolife:!!(q.cd && q.cd.id === 16 && q.cd.team === q.turn), turn:q.turn, over:q.over, risk:q.risk, paused:!!q.paused, fresh:!!q.fresh,
       trap: q.risk ? PASS_RISK : hasTraps(L) ? 0 : (TRAPS[q.wrong] || 0),
       traps: hasTraps(L) ? L.x.map((x, i) => ({ n:ansName(x), p:TRAPS[i] || 0, hit:!!(q.traps && q.traps[i]) })) : [],
-      life: { hint:HINTS - S.used[q.turn].hint, pass:!S.used[q.turn].pass && !q.risk, dbl:!S.used[q.turn].dbl, dblOn:q.dbl, solo:!!S.solo, team:!!S.solo && !S.used[q.turn].team },
+      life: { hint:HINTS - S.used[q.turn].hint, pass:!S.used[q.turn].pass && !q.risk, dbl:!S.used[q.turn].dbl, dblOn:q.dbl, solo:!!S.solo, team:!!S.solo && !S.used[q.turn].team, amb:!S.used[q.turn].amb, ambOn:!!q.amb },
+      steal: q.last && !S.used[1 - q.last.team].steal ? { team:1 - q.last.team, n:ansName(L.a[q.last.i]), p:q.last.pts } : null,
       answers: L.a.map((a, i) => ({ n:ansName(a), p:(i + 1) * STEP, by:q.got[i], h:q.hints && q.hints[i] ? hintFor(L, i) : undefined })) });
   }
   if(net) fetch("/state?k=" + net.key, { method:"POST", body:JSON.stringify(st) }).then(r => { if(r.status === 403) refreshNet(); }).catch(() => {});
@@ -1194,7 +1219,7 @@ function applyCmd(c){
     return;
   }
   const q = S.q;
-  if(q.over){ if(c.t === "next"){ snap(); advance(); } return; }
+  if(q.over){ if(c.t === "next"){ snap(); advance(); } else if(c.t === "life" && c.k === "steal" && q.last){ snap(); stealLast(); } return; }
   if(c.t === "pause"){ togglePause(); return; }
   if(q.paused) return;
   snap(); const n0 = U.length, s0 = S.seq;
@@ -1203,7 +1228,7 @@ function applyCmd(c){
   else if(c.t === "trap" && Number.isInteger(c.i) && hasTraps(curList()) && c.i >= 0 && c.i < curList().x.length && !(q.traps && q.traps[c.i])) miss("", c.i);
   else if(c.t === "endq") endQuestion();
   else if(c.t === "swap") swapTurn();
-  else if(c.t === "life" && ["hint", "pass", "dbl", "team"].includes(c.k)) useLife(c.k);
+  else if(c.t === "life" && ["hint", "pass", "dbl", "team", "amb", "steal"].includes(c.k)) useLife(c.k);
   if(S.seq === s0 && U.length === n0) U.pop();                             // الأمر ما غيّر شي: لا تحفظ له نسخة تراجع
 }
 // يجيب عنوان ومفتاح الحكم من السيرفر. لو السيرفر انعاد تشغيله (مفتاح جديد) أو تغيّرت الشبكة (عنوان جديد) يتحدّث الكود لحاله.
@@ -1319,8 +1344,10 @@ function refApp(){
         <button ${st.life.hint > 0 ? "" : "disabled"} data-r='{"t":"life","k":"hint"}'>تلميح ${fmt(st.life.hint)}</button>
         <button ${st.life.pass ? "" : "disabled"} data-r='{"t":"life","k":"pass"}'>باس</button>
         <button class="${st.life.dblOn ? "act" : ""}" ${st.life.dbl ? "" : "disabled"} data-r='{"t":"life","k":"dbl"}'>جوابين</button>
+        <button class="${st.life.ambOn ? "act" : ""}" ${st.life.amb ? "" : "disabled"} data-r='{"t":"life","k":"amb"}'>فخ النقاط</button>
         ${st.life.solo ? `<button ${st.life.team ? "" : "disabled"} data-r='{"t":"life","k":"team"}'>استشارة الفريق</button>` : ""}
       </div>`}
+      ${st.steal && !st.paused ? `<button class="wrongbtn" style="width:100%;margin:10px 0" data-r='{"t":"life","k":"steal"}'>📯 بوق الجواب: ${esc(st.names[st.steal.team])} ياخذون «${esc(st.steal.n)}» (+${fmt(st.steal.p)})</button>` : ""}
       <div class="bar">${st.over
         ? `<button class="btn" style="grid-column:1/-1" data-r='{"t":"next"}'>${st.qi + 1 < st.total ? "السؤال التالي " : "النتيجة النهائية "}</button>`
         : st.paused ? `<button class="btn" style="grid-column:1/-1" data-r='{"t":"pause"}'>${st.fresh ? "جاهزين؟ ابدأ الوقت" : "كمّل"}</button>`
