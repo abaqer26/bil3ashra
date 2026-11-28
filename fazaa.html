@@ -471,6 +471,8 @@ input[type=text]:focus{outline:none;border-color:var(--a-fill);box-shadow:0 0 14
 /* ===================== إعدادات القوانين ===================== */
 const MAX_CATS    = 6;     // أقصى عدد فئات في الجولة
 const PER_CAT     = 6;     // عدد الأسئلة اللي تنلعب من كل فئة مختارة
+// الأسئلة المفتوحة (فيها pool): أي جواب صح ينقبل، ويعبي الخانة الجاية من العشر. نعطيها ١٠ خانات وهمية علشان باقي الكود يمشي عليها.
+BANK.forEach((c, ci) => c.lists.forEach((L, li) => { if(Array.isArray(L.pool)){ L.open = true; L.a = Array.from({ length:10 }, (_, i) => `§${ci}.${li}.${i}`); } }));
 const STEP        = 100;   // نقاط أول جواب، ويزيد بنفس المقدار لكل جواب
 const TRAPS       = [300, 200, 100]; // خصم الفخاخ: أول غلطة في السؤال، ثم الثانية، ثم الثالثة
 const PASS_RISK   = 500;   // خصم الغلط في الدور اللي جاك بالباس
@@ -611,7 +613,7 @@ const cat = id => BANK.find(c => c.id === id);
 const ICON = { geo:"🌍", arb:"🏜️", isl:"۞", qrn:"۞", ahl:"۞", spo:"🏅", sci:"🔬", num:"🔢", lng:"🔤", fb:"⚽", tec:"💻", usa:"🗽", afr:"🦁",
   his:"🏛️", spt:"📺", kth:"🎭", kdr:"🎬", kw:"🇰🇼", kpl:"🏟️", clas:"📋", cars:"🏎️", gk:"💡", food:"🍔", anm:"🐪",
   nba:"🏀", mov:"🍿", spc:"🚀", eu:"🇪🇺", vg:"🎮", toon:"🐼", hero:"🦸", epl:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", stars:"🌟", cap:"🏙️",
-  gcc:"🌴", air:"✈️", brd:"🏷️", uni:"🎓", trth:"⛵" };
+  gcc:"🌴", air:"✈️", brd:"🏷️", uni:"🎓", trth:"⛵", wbhj:"🔤" };
 const catIcon = c => ICON[c.id] || c.icon || "🎯";
 // إيموجي الفرق: كل فريق يختار واحد
 const EMO = ["🦅","🐆","🐎","🐪","🔥","⚡","🌪️","🎯"];
@@ -620,6 +622,17 @@ const TN = i => emo(i) + " " + S.names[i];
 const curList = () => { const o = S.order[S.qi]; return cat(o.c).lists[o.l]; };
 const ansName = a => Array.isArray(a) ? a[0] : a;
 const ansAll  = a => Array.isArray(a) ? a : [a];
+// اسم الجواب في الخانة i: في السؤال المفتوح هو الجواب اللي انقال وانحسب
+const nm = (L, i) => L.open ? (((S.q && S.q.openA) || {})[i] || "") : ansName(L.a[i]);
+function openAward(p, text){
+  const q = S.q, L = curList(); q.openU = q.openU || []; q.openA = q.openA || {};
+  if(p !== null && p !== undefined){ if(!L.pool[p]) return; if(q.openU.includes(p)){ msg = { k:"no", t:`«${ansName(L.pool[p])}» انقال قبل — جرّبوا غيره` }; q.ask = null; return; } }
+  const i = L.a.findIndex((_, j) => q.got[j] === undefined); if(i < 0) return;
+  const name = p !== null && p !== undefined ? ansName(L.pool[p]) : (String(text || "").trim() || "جواب صح");
+  if(Object.values(q.openA).some(x => norm(x) === norm(name)) && name !== "جواب صح"){ msg = { k:"no", t:`«${name}» انقال قبل — جرّبوا غيره` }; q.ask = null; return; }
+  if(p !== null && p !== undefined) q.openU.push(p);
+  q.openA[i] = name; q.ask = null; award(i);
+}
 // توحيد الكتابة العربية للمقارنة: همزات، تاء مربوطة، ال التعريف، تشكيل، مسافات،
 // وعبارات التوقير، والكتابات الشائعة (ق/غ/ج، تش/ش، الحروف المكررة، عبدال ملزوقة، ابن/بن، «م» بعد السنة).
 // أي تغيير هني لازم ينفحص على البنك كله: ما يصير جوابين في نفس السؤال يتطابقون.
@@ -781,7 +794,7 @@ function teamBox(i, live, bad){
       <button data-life="dbl" class="${mine && q.dbl ? "act" : ""}" ${mine && !u.dbl ? "" : "disabled"}>جوابين</button>
       <button data-life="amb" class="${mine && q.amb ? "act" : ""}" ${mine && !u.amb ? "" : "disabled"}>فخ النقاط</button>
       <button data-life="steal" class="${q.last && q.last.team !== i && !u.steal ? "hot" : ""}" ${q.last && q.last.team !== i && !u.steal && !q.paused ? "" : "disabled"}>📯 بوق الجواب</button>
-      <button data-life="lock" data-team="${i}" class="${mine && lockPick ? "act" : ""}" ${mine && !u.lock && !q.lock && !q.paused ? "" : "disabled"}>🔒 القفل</button>
+      <button data-life="lock" data-team="${i}" class="${mine && lockPick ? "act" : ""}" ${mine && !u.lock && !q.lock && !q.paused && !curList().open ? "" : "disabled"}>🔒 القفل</button>
       <button data-life="dare" data-team="${i}" ${live && q.turn !== i && !u.dare && (q.dare === null || q.dare === undefined) && !q.paused && !blocked16(i) ? "" : "disabled"}>⚔️ التحدي</button>
       <button data-life="bet" data-team="${i}" class="${betPick === i ? "act" : ""}" ${live && q.fresh && !u.bet && !blocked16(i) ? "" : "disabled"}>🎯 الرهان</button>
       <button data-life="swapq" data-team="${i}" ${mine && q.fresh && !u.swapq ? "" : "disabled"}>🔁 تبديل السؤال</button>
@@ -811,6 +824,7 @@ function viewQuestion(){
       ${q.cd ? `<span class="tag ctag ${CD(q.cd.id).g ? "good" : "bad"}">🃏 ${esc(CD(q.cd.id).n)} · ${esc(S.names[q.cd.team])}</span>` : ""}
       <span class="tag">${hasTraps(L)
         ? (() => { const left = L.x.filter((_, i) => !(q.traps && q.traps[i])).length; return left ? "● ".repeat(left) + (left === 1 ? "فخ واحد مخفي" : left === 2 ? "فخّين مخفيين" : fmt(left) + " فخاخ مخفية") : "الفخاخ انكشفت كلها"; })()
+        : L.open ? "أي جواب صح ينقبل · بدون فخاخ"
         : q.wrong < TRAPS.length ? "● ".repeat(TRAPS.length - q.wrong) + "الفخ الجاي −" + fmt(TRAPS[q.wrong]) : "الفخاخ خلصت"}</span>
       ${soundBtn()}${themeBtn()}
       <button class="btn ghost sm" data-act="quit">إنهاء الجولة</button>
@@ -824,8 +838,8 @@ function viewQuestion(){
     <div class="slots">
       ${L.a.map((a, i) => {
         const by = q.got[i], pts = ptsOf(i);
-        if(by !== undefined) return `<div class="slot got ${by < 0 ? "" : "t" + by} ${pop === i ? "pop" : ""}">${pop === i ? `<i class="swoop" aria-hidden="true">⭐</i>` : ""}<span class="n">${fmt(i + 1)}</span><span class="tx">${esc(ansName(a))}</span><span class="pt">+${fmt(pts)}</span></div>`;
-        if(show) return `<button class="slot ${q.over ? "miss" : "peek"}" ${q.over ? "disabled" : `data-award="${i}"`}><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(ansName(a))}</span><span class="pt">+${fmt(pts)}</span></button>`;
+        if(by !== undefined) return `<div class="slot got ${by < 0 ? "" : "t" + by} ${pop === i ? "pop" : ""}">${pop === i ? `<i class="swoop" aria-hidden="true">⭐</i>` : ""}<span class="n">${fmt(i + 1)}</span><span class="tx">${esc(nm(L, i))}</span><span class="pt">+${fmt(pts)}</span></div>`;
+        if(show) return `<button class="slot ${q.over ? "miss" : "peek"}" ${q.over ? "disabled" : `data-award="${i}"`}><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(L.open ? (q.over ? "—" : "✓ احسبوه صح") : ansName(a))}</span><span class="pt">+${fmt(pts)}</span></button>`;
         return q.hints && q.hints[i]
           ? `<div class="slot hinted"><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(hintFor(L, i))}</span><span class="pt">+${fmt(pts)}</span></div>`
           : lockPick && live ? `<button class="slot peek" data-lock="${i}"><span class="n">${fmt(i + 1)}</span><span class="tx">🔒 اقفل هذا</span><span class="pt">+${fmt(pts)}</span></button>`
@@ -838,6 +852,8 @@ function viewQuestion(){
         return `<div class="slot trapslot"><span class="n">${no}</span><span class="tx">؟ ؟ ؟ ؟</span><span class="pt">${pen}</span></div>`;
       }).join("") : ""}
     </div>
+    ${L.open && q.over ? `<div class="trapline">أجوبة ثانية كانت تنقبل: ${L.pool.map((x, p) => (q.openU || []).includes(p) ? "" : esc(ansName(x))).filter(Boolean).slice(0, 14).join("، ")}${L.pool.length - (q.openU || []).length > 14 ? "…" : ""}</div>` : ""}
+    ${live && L.open && q.ask && !q.paused ? `<div class="row center" style="margin-top:12px"><span>«${esc(q.ask)}» مو في قائمة اللعبة. صح ولا غلط؟</span><button class="btn sm on" data-act="open-yes">✓ صح، احسبوه</button><button class="btn ghost sm" data-act="open-no">✗ غلط</button></div>` : ""}
     ${live && !refOn() && !q.paused ? `
       <form class="answer" id="form">
         <input type="text" id="ans" autocomplete="off" placeholder="جواب ${esc(S.names[q.turn])}…">
@@ -1109,7 +1125,7 @@ function endQuestion(){
 function allFound(){ return Object.keys(S.q.got).length === curList().a.length; }
 function nextTurn(risk){
   const q = S.q;
-  q.dbl = false; q.amb = false; q.dare = null; q.risk = !!risk; q.turn = 1 - q.turn; bump(); lockPick = false;
+  q.dbl = false; q.amb = false; q.dare = null; q.ask = null; q.risk = !!risk; q.turn = 1 - q.turn; bump(); lockPick = false;
   if(q.cd && q.cd.id === 9 && !q.cd.used && q.turn !== q.cd.team){          // تجميد: الخصم يفوّت أول دور له
     q.cd.used = true; q.turn = q.cd.team; q.risk = false;
     msg = { k:"", t:(msg ? msg.t + " — " : "") + `🧊 ${S.names[1 - q.turn]} متجمدين: الدور يرجع لـ ${S.names[q.turn]}` };
@@ -1146,9 +1162,9 @@ function award(i){
   fx.pop = { i, at:Date.now() }; sfx("ok");
   S.log = S.log || { best:null, got:[0,0], traps:[0,0], at:Date.now() };
   S.log.got[q.turn]++;
-  if(!S.log.best || pts > S.log.best.pts) S.log.best = { pts, a:ansName(L.a[i]), team:q.turn, t:L.t };
-  if((q.flip ? i <= 1 : i >= 8) && !bonus) goldBurst(ansName(L.a[i]), q.turn);                     // الجواب ٩ أو ١٠: «جواب ذهبي»
-  msg = { k:"ok", t:`صح! ${ansName(L.a[i])} — +${fmt(pts)}${tagc} لـ ${TN(q.turn)}${bonus}` };
+  if(!S.log.best || pts > S.log.best.pts) S.log.best = { pts, a:nm(L, i), team:q.turn, t:L.t };
+  if((q.flip ? i <= 1 : i >= 8) && !bonus) goldBurst(nm(L, i), q.turn);                     // الجواب ٩ أو ١٠: «جواب ذهبي»
+  msg = { k:"ok", t:`صح! ${nm(L, i)} — +${fmt(pts)}${tagc} لـ ${TN(q.turn)}${bonus}` };
   if(allFound()) return endQuestion();
   if(q.dbl){ q.dbl = false; q.risk = false; msg.t += " — باقي لكم جواب ثاني"; startTimer(); }
   else nextTurn();
@@ -1158,13 +1174,13 @@ function award(i){
 const hasTraps = L => Array.isArray(L.x) && L.x.length > 0;
 function miss(text, ti){
   const q = S.q, L = curList();
-  q.last = null;
+  q.last = null; q.ask = null;
   q.traps = q.traps || {};
   let pen = 0;
   if(hasTraps(L)){
     if(ti !== undefined && L.x[ti] !== undefined && !q.traps[ti]){ q.traps[ti] = true; (q.trapBy = q.trapBy || {})[ti] = q.turn; if(S.log) S.log.traps[q.turn]++; fx.trap = { i:ti, at:Date.now() }; pen = TRAPS[ti] || 0; text = `🪤 طحتوا في الفخ! «${ansName(L.x[ti])}»`; }
   }
-  else if(!q.risk){ pen = TRAPS[q.wrong] || 0; q.wrong++; }
+  else if(!q.risk && !L.open){ pen = TRAPS[q.wrong] || 0; q.wrong++; }
   if(q.risk) pen = PASS_RISK;                                          // دور المخاطرة: أي غلط (حتى الفخ) يخصم خصم المخاطرة
   const trapHit = hasTraps(L) && ti !== undefined && fx.trap && fx.trap.i === ti;
   if(trapHit && cdOn(5, q.turn)){ pen = 0; q.cd.used = true; text += " — 🛡️ الدرع حماكم"; }
@@ -1188,6 +1204,12 @@ function submit(text){
   const q = S.q, L = curList(), ns = cands(text);
   if(!ns.length) return;
   const hit = a => ansAll(a).some(x => ns.includes(norm(x)));
+  if(L.open){                                                           // سؤال مفتوح: الجواب من القائمة ينحسب، وغيره ينسأل عنه
+    const p = L.pool.findIndex(hit);
+    if(p >= 0) return openAward(p);
+    if(Object.values(q.openA || {}).some(x => ns.includes(norm(x)))){ msg = { k:"no", t:`«${text.trim()}» انقال قبل — جرّبوا غيره` }; return; }
+    q.ask = text.trim(); bump(); msg = { k:"", t:`«${q.ask}» مو في قائمة اللعبة — احكموا: صح ولا غلط؟` }; return;
+  }
   const i = L.a.findIndex(hit);
   if(i < 0){
     const ti = hasTraps(L) ? L.x.findIndex(hit) : -1;
@@ -1199,6 +1221,11 @@ function submit(text){
 // التلميح ما يكشف الجواب: معلومة عنه إذا السؤال فيه تلميحات (h في bank.js)، وإلا أول حرف وعدد الحروف.
 function hintFor(L, i){
   if(L.h && L.h[i]) return L.h[i];
+  if(L.open){                                                           // تلميح السؤال المفتوح: أول حرفين من جواب مقبول ما انقال
+    const free = L.pool.map((_, p) => p).filter(p => !((S.q && S.q.openU) || []).includes(p)); if(!free.length) return "ما بقى تلميح";
+    const w = ansName(L.pool[free[(i * 7 + 3) % free.length]]).replace(/^ال(?=.{3,})/, ""), ch = [...w.replace(/\s+/g, "")];
+    return `جواب مقبول يبدي بـ «${[...w].slice(0, 2).join("")}…» · ${fmt(ch.length)} حروف`;
+  }
   const words = ansName(L.a[i]).replace(/[\u064B-\u0652\u0640]/g, "").split(/\s+/).filter(Boolean);
   const hasAl = /^ال.{2,}/.test(words[0]), first = hasAl ? words[0].slice(2) : words[0];
   const n = words.join("").length - (hasAl ? 2 : 0);
@@ -1214,11 +1241,11 @@ function stealLast(){
   if(q.cd && q.cd.id === 16 && q.cd.team === t){ msg = { k:"no", t:"🃏 بطاقة «بدون وسائل»: ما تقدرون تستخدمون الوسائل بهالسؤال" }; return; }
   u.steal = true; S.score[a.team] -= a.pts; S.score[t] += a.pts; q.got[a.i] = t;
   if(a.amb){ S.score[t] += a.pts; }                                            // لو كان عليه «فخ النقاط»: الخصم اللي انخصم منه يرجع له
-  if(S.log){ S.log.got[a.team]--; S.log.got[t]++; if(S.log.best && S.log.best.a === ansName(curList().a[a.i]) && S.log.best.team === a.team) S.log.best.team = t; }
+  if(S.log){ S.log.got[a.team]--; S.log.got[t]++; if(S.log.best && S.log.best.a === nm(curList(), a.i) && S.log.best.team === a.team) S.log.best.team = t; }
   if(q.pts){ q.pts[a.team] -= a.pts; q.pts[t] += a.pts; }
   if(S.log){ S.log.steals = S.log.steals || [0,0]; S.log.steals[t]++; }
   q.last = null; bump(); fx.pop = { i:a.i, at:Date.now() }; sfx("horn");
-  msg = { k:"ok", t:`📯 بوق الجواب! ${TN(t)} خذوا «${ansName(curList().a[a.i])}» و${fmt(a.pts)} نقطة من ${S.names[a.team]}` };
+  msg = { k:"ok", t:`📯 بوق الجواب! ${TN(t)} خذوا «${nm(curList(), a.i)}» و${fmt(a.pts)} نقطة من ${S.names[a.team]}` };
 }
 // سؤال بديل من نفس الفئة: ما انلعب قبل له الأولوية، وبعدين الأسهل
 function altList(){
@@ -1257,7 +1284,7 @@ function useLife(k, t, v){
     msg = { k:"", t:`🔁 ${S.names[who]} بدّلوا السؤال — ` + msg.t }; return;
   }
   if(k === "lock"){                                                      // القفل: يختار رقم جواب ما انكشف ويقفله على الخصم
-    const q = S.q, u = S.used[q.turn]; if(q.over || q.paused || u.lock || q.lock) return;
+    const q = S.q, u = S.used[q.turn]; if(q.over || q.paused || u.lock || q.lock || curList().open) return;
     if(blocked16(q.turn)){ msg = NOLIFE; return; }
     if(v === undefined){ lockPick = !lockPick; if(lockPick) msg = { k:"", t:"🔒 اختاروا رقم الجواب اللي تبون تقفلونه على الخصم" }; return; }
     v = +v; if(!Number.isInteger(v) || v < 0 || v >= curList().a.length || q.got[v] !== undefined) return;
@@ -1360,15 +1387,16 @@ function publish(){
   if(S.screen === "question"){
     const L = curList(), q = S.q;
     Object.assign(st, { qi:S.qi, total:S.order.length, progress:progress(), title:L.t, cd:q.cd ? `«${CD(q.cd.id).n}» على ${S.names[q.cd.team]}: ${CD(q.cd.id).d}` : "", nolife:!!(q.cd && q.cd.id === 16 && q.cd.team === q.turn), turn:q.turn, over:q.over, risk:q.risk, paused:!!q.paused, fresh:!!q.fresh,
-      trap: q.risk ? PASS_RISK : hasTraps(L) ? 0 : (TRAPS[q.wrong] || 0),
+      trap: q.risk ? PASS_RISK : hasTraps(L) || L.open ? 0 : (TRAPS[q.wrong] || 0),
       traps: hasTraps(L) ? L.x.map((x, i) => ({ n:ansName(x), p:TRAPS[i] || 0, hit:!!(q.traps && q.traps[i]) })) : [],
       life: { hint:HINTS - S.used[q.turn].hint, pass:!S.used[q.turn].pass && !q.risk, dbl:!S.used[q.turn].dbl, dblOn:q.dbl, solo:!!S.solo, team:!!S.solo && !S.used[q.turn].team, amb:!S.used[q.turn].amb, ambOn:!!q.amb },
       dare: !q.over && !S.used[1 - q.turn].dare && (q.dare === null || q.dare === undefined) && !blocked16(1 - q.turn), dareOn:q.dare !== null && q.dare !== undefined,
-      lockOk: !S.used[q.turn].lock && !q.lock, lock:q.lock ? { i:q.lock.i, team:q.lock.team } : null,
+      lockOk: !S.used[q.turn].lock && !q.lock && !L.open, lock:q.lock ? { i:q.lock.i, team:q.lock.team } : null,
       bets: q.fresh ? [0,1].map(t => !S.used[t].bet && !blocked16(t)) : [false,false], bet:q.bet || {}, swapq: !!q.fresh && !S.used[q.turn].swapq,
       gold:!!q.gold, luck:q.luck ? q.luck.v : 0,
-      steal: q.last && !S.used[1 - q.last.team].steal ? { team:1 - q.last.team, n:ansName(L.a[q.last.i]), p:q.last.pts } : null,
-      answers: L.a.map((a, i) => ({ n:ansName(a), p:ptsOf(i), by:q.got[i], h:q.hints && q.hints[i] ? hintFor(L, i) : undefined })) });
+      steal: q.last && !S.used[1 - q.last.team].steal ? { team:1 - q.last.team, n:nm(L, q.last.i), p:q.last.pts } : null,
+      open:!!L.open, ask:q.ask || "", pool:L.open ? L.pool.map((x, p) => ({ n:ansName(x), u:(q.openU || []).includes(p) })) : [],
+      answers: L.a.map((a, i) => ({ n:nm(L, i), p:ptsOf(i), by:q.got[i], h:q.hints && q.hints[i] ? hintFor(L, i) : undefined })) });
   }
   if(net) fetch("/state?k=" + net.key, { method:"POST", body:JSON.stringify(st) }).then(r => { if(r.status === 403) refreshNet(); }).catch(() => {});
   else { p2p.last = st; p2p.conns.forEach(c => { try{ if(c.open) c.send({ st }); }catch(e){} }); }
@@ -1419,7 +1447,9 @@ function applyCmd(c){
     return;
   }
   snap(); const n0 = U.length, s0 = S.seq;
-  if(c.t === "award" && Number.isInteger(c.i) && c.i >= 0 && c.i < curList().a.length && q.got[c.i] === undefined) award(c.i);
+  if(c.t === "award" && !curList().open && Number.isInteger(c.i) && c.i >= 0 && c.i < curList().a.length && q.got[c.i] === undefined) award(c.i);
+  else if(c.t === "openp" && Number.isInteger(c.i) && curList().open) openAward(c.i);
+  else if(c.t === "openx" && curList().open) openAward(null, q.ask);
   else if(c.t === "wrong") miss("الحكم حسبها غلط");
   else if(c.t === "trap" && Number.isInteger(c.i) && hasTraps(curList()) && c.i >= 0 && c.i < curList().x.length && !(q.traps && q.traps[c.i])) miss("", c.i);
   else if(c.t === "endq") endQuestion();
@@ -1528,10 +1558,14 @@ function refApp(){
       <div class="qtitle" style="margin-bottom:0">${esc(st.title)}</div>
       <div class="who" style="color:${st.over ? "var(--muted)" : col(st.turn)}">${st.over ? "انتهى السؤال" : "الدور: " + esc(st.names[st.turn])}</div>
       <div class="slots" style="grid-template-columns:1fr">
-        ${st.answers.map((a, i) => a.by != null
+        ${(st.open ? st.answers.filter(a => a.by != null) : st.answers).map((a, i) => a.by != null
           ? `<div class="slot got ${a.by < 0 ? "" : "t" + a.by}"><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(a.n)}</span><span class="pt">${a.by < 0 ? "تلميح" : "✓"}</span></div>`
           : `<button class="slot" ${st.over || st.paused ? "disabled" : ""} data-r='{"t":"award","i":${i}}'><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(a.n)}${a.h ? `<small class="muted" style="display:block;font-size:12px;font-weight:400">انعطى تلميح: ${esc(a.h)}</small>` : ""}</span><span class="pt">+${fmt(a.p)}</span></button>`).join("")}
       </div>
+      ${st.open && !st.over ? `<div class="rcat" style="margin-top:10px"><div class="rn">أي جواب صح ينقبل — اضغط الجواب اللي انقال (${fmt(st.answers.filter(a => a.by != null).length)} / ${fmt(st.answers.length)})</div>
+        ${st.ask ? `<div class="muted" style="margin-bottom:8px">انكتب على الشاشة: «${esc(st.ask)}»</div>` : ""}
+        <div class="lf" style="gap:6px">${st.pool.map((x, p) => `<button ${x.u || st.paused ? "disabled" : ""} data-r='{"t":"openp","i":${p}}'>${esc(x.n)}</button>`).join("")}</div>
+        <button class="btn" style="width:100%;margin-top:10px" ${st.paused ? "disabled" : ""} data-r='{"t":"openx"}'>✓ جواب صح مو بالقائمة</button></div>` : ""}
       ${(st.traps || []).length ? `<div class="muted" style="text-align:center;margin-top:14px">الأجوبة ١١ و١٢ و١٣ فخاخ — اضغط لو الفريق قال واحد منها</div>
       <div class="slots" style="grid-template-columns:1fr">
         ${st.traps.map((t, i) => `<button class="slot trap" ${st.over || t.hit || st.paused ? "disabled" : ""} data-r='{"t":"trap","i":${i}}'><span class="n">${fmt(st.answers.length + 1 + i)}</span><span class="tx">${esc(t.n)}</span><span class="pt">${t.hit ? "انكشف" : "−" + fmt(t.p)}</span></button>`).join("")}
@@ -1626,7 +1660,7 @@ function demoStart(){
   const el = document.createElement("div"); el.id = "demo"; el.className = "ovl";
   document.body.appendChild(el);
   let L = null, order = [], k = 0, c = null;
-  const pick = () => { c = BANK[Math.floor(Math.random() * BANK.length)]; L = c.lists[Math.floor(Math.random() * c.lists.length)]; order = shuffle(L.a.map((_, i) => i)); k = 0; markPlayed(c.id, L.t); };   // السؤال اللي انعرض ينحسب «انلعب» عشان ما يطلع لهم بعدين وهم يعرفون أجوبته
+  const pick = () => { c = BANK[Math.floor(Math.random() * BANK.length)]; do { c = BANK[Math.floor(Math.random() * BANK.length)]; L = c.lists[Math.floor(Math.random() * c.lists.length)]; } while(L.open); order = shuffle(L.a.map((_, i) => i)); k = 0; markPlayed(c.id, L.t); };   // السؤال اللي انعرض ينحسب «انلعب» عشان ما يطلع لهم بعدين وهم يعرفون أجوبته
   const draw = () => {
     const shown = new Set(order.slice(0, k)), last = order[k - 1];
     el.innerHTML = `<div class="wrap">
@@ -1763,7 +1797,9 @@ $app.addEventListener("click", e => {
   else if(d.lock !== undefined){ snap(); const s0 = S.seq; useLife("lock", undefined, +d.lock); if(S.seq === s0) U.pop(); }
   else if(d.life){ snap(); const s0 = S.seq, o0 = S.order[S.qi] && S.order[S.qi].l; useLife(d.life, d.team, d.v); if(S.seq === s0 && (S.order[S.qi] || {}).l === o0) U.pop(); }
   else if(d.opt){ S.opt = S.opt || {}; S.opt[d.opt] = !S.opt[d.opt]; }
-  else if(d.award){ snap(); award(+d.award); }
+  else if(d.award){ snap(); if(curList().open) openAward(null, S.q.ask); else award(+d.award); }
+  else if(d.act === "open-yes"){ snap(); openAward(null, S.q.ask); }
+  else if(d.act === "open-no"){ snap(); miss(`«${S.q.ask || ""}» غلط`); }
   else if(d.trap !== undefined){ snap(); miss("", +d.trap); }
   else if(d.act === "peek") peek = !peek;
   else if(d.act === "wrong"){ snap(); miss("الحكم حسبها غلط"); }
