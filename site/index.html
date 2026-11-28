@@ -464,7 +464,7 @@ input[type=text]:focus{outline:none;border-color:var(--a-fill);box-shadow:0 0 14
 <body>
 <div class="wrap" id="app"></div>
 
-<script src="bank.js?v=f8ec3418"></script>
+<script src="bank.js?v=c3c7d3af"></script>
 <script>
 // بنك الأسئلة (BANK و US و UK) انتقل إلى ملف bank.js
 
@@ -854,6 +854,7 @@ function viewQuestion(){
     </div>
     ${L.open && q.over ? `<div class="trapline">أجوبة ثانية كانت تنقبل: ${L.pool.map((x, p) => (q.openU || []).includes(p) ? "" : esc(ansName(x))).filter(Boolean).slice(0, 14).join("، ")}${L.pool.length - (q.openU || []).length > 14 ? "…" : ""}</div>` : ""}
     ${live && L.open && q.ask && !q.paused ? `<div class="row center" style="margin-top:12px"><span>«${esc(q.ask)}» مو في قائمة اللعبة. صح ولا غلط؟</span><button class="btn sm on" data-act="open-yes">✓ صح، احسبوه</button><button class="btn ghost sm" data-act="open-no">✗ غلط</button></div>` : ""}
+    ${live && !L.open && q.ask && !q.paused ? `<div class="row center" style="margin-top:12px"><span>«${esc(q.ask)}»؟</span><button class="btn ghost sm" data-act="open-okk">صح، بس مو من العشرة</button><button class="btn ghost sm" data-act="open-no">✗ غلط</button></div>` : ""}
     ${live && !refOn() && !q.paused ? `
       <form class="answer" id="form">
         <input type="text" id="ans" autocomplete="off" placeholder="جواب ${esc(S.names[q.turn])}…">
@@ -1213,6 +1214,10 @@ function submit(text){
   const i = L.a.findIndex(hit);
   if(i < 0){
     const ti = hasTraps(L) ? L.x.findIndex(hit) : -1;
+    // جواب صح بس مو من العشرة (قائمة ok في السؤال): ما ينحسب ولا ينخصم، والدور باقي
+    if(ti < 0 && Array.isArray(L.ok) && L.ok.some(hit)){ msg = { k:"", t:`«${text.trim()}» جواب صح، بس مو من العشرة اللي باللعبة — جرّبوا غيره` }; return; }
+    // سؤال له قائمة ok والجواب مو في أي قائمة: الجماعة يحكمون، صح بس مو من العشرة ولا غلط
+    if(ti < 0 && Array.isArray(L.ok)){ q.ask = text.trim(); bump(); msg = { k:"", t:`«${q.ask}» مو في قوائم اللعبة — احكموا: صح بس مو من العشرة، ولا غلط؟` }; return; }
     return miss(`«${text.trim()}» غلط`, ti >= 0 ? ti : undefined);
   }
   if(q.got[i] !== undefined){ msg = { k:"no", t:`«${ansName(L.a[i])}» انكشف قبل — جرّب غيره` }; return; }
@@ -1395,7 +1400,7 @@ function publish(){
       bets: q.fresh ? [0,1].map(t => !S.used[t].bet && !blocked16(t)) : [false,false], bet:q.bet || {}, swapq: !!q.fresh && !S.used[q.turn].swapq,
       gold:!!q.gold, luck:q.luck ? q.luck.v : 0,
       steal: q.last && !S.used[1 - q.last.team].steal ? { team:1 - q.last.team, n:nm(L, q.last.i), p:q.last.pts } : null,
-      open:!!L.open, ask:q.ask || "", pool:L.open ? L.pool.map((x, p) => ({ n:ansName(x), u:(q.openU || []).includes(p) })) : [],
+      okl:(L.ok || []).map(ansName), open:!!L.open, ask:q.ask || "", pool:L.open ? L.pool.map((x, p) => ({ n:ansName(x), u:(q.openU || []).includes(p) })) : [],
       answers: L.a.map((a, i) => ({ n:nm(L, i), p:ptsOf(i), by:q.got[i], h:q.hints && q.hints[i] ? hintFor(L, i) : undefined })) });
   }
   if(net) fetch("/state?k=" + net.key, { method:"POST", body:JSON.stringify(st) }).then(r => { if(r.status === 403) refreshNet(); }).catch(() => {});
@@ -1562,6 +1567,7 @@ function refApp(){
           ? `<div class="slot got ${a.by < 0 ? "" : "t" + a.by}"><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(a.n)}</span><span class="pt">${a.by < 0 ? "تلميح" : "✓"}</span></div>`
           : `<button class="slot" ${st.over || st.paused ? "disabled" : ""} data-r='{"t":"award","i":${i}}'><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(a.n)}${a.h ? `<small class="muted" style="display:block;font-size:12px;font-weight:400">انعطى تلميح: ${esc(a.h)}</small>` : ""}</span><span class="pt">+${fmt(a.p)}</span></button>`).join("")}
       </div>
+      ${(st.okl || []).length && !st.over ? `<div class="rcat" style="margin-top:10px;font-size:14px"><div class="rn">صح بس مو من العشرة — لا تحسبها غلط، خلهم يجربون غيرها</div><div class="muted" style="line-height:1.9">${st.okl.map(esc).join("، ")}</div></div>` : ""}
       ${st.open && !st.over ? `<div class="rcat" style="margin-top:10px"><div class="rn">أي جواب صح ينقبل — اضغط الجواب اللي انقال (${fmt(st.answers.filter(a => a.by != null).length)} / ${fmt(st.answers.length)})</div>
         ${st.ask ? `<div class="muted" style="margin-bottom:8px">انكتب على الشاشة: «${esc(st.ask)}»</div>` : ""}
         <div class="lf" style="gap:6px">${st.pool.map((x, p) => `<button ${x.u || st.paused ? "disabled" : ""} data-r='{"t":"openp","i":${p}}'>${esc(x.n)}</button>`).join("")}</div>
@@ -1799,6 +1805,7 @@ $app.addEventListener("click", e => {
   else if(d.opt){ S.opt = S.opt || {}; S.opt[d.opt] = !S.opt[d.opt]; }
   else if(d.award){ snap(); if(curList().open) openAward(null, S.q.ask); else award(+d.award); }
   else if(d.act === "open-yes"){ snap(); openAward(null, S.q.ask); }
+  else if(d.act === "open-okk"){ const a = S.q.ask; S.q.ask = null; bump(); msg = { k:"", t:`«${a}» صح بس مو من العشرة — جرّبوا غيره` }; }
   else if(d.act === "open-no"){ snap(); miss(`«${S.q.ask || ""}» غلط`); }
   else if(d.trap !== undefined){ snap(); miss("", +d.trap); }
   else if(d.act === "peek") peek = !peek;
