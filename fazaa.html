@@ -430,6 +430,10 @@ input[type=text]:focus{outline:none;border-color:var(--a-fill);box-shadow:0 0 14
 .stats{display:grid;gap:6px;width:min(100%,520px);background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:14px 18px}
 .stats>div{display:grid;grid-template-columns:1.4fr 1fr 1fr;align-items:center;text-align:center;gap:8px}
 .stats span{text-align:start;color:var(--muted)} .stats b{font-weight:800;font-size:18px} .stats .sh b{font-size:14px;font-weight:600}
+#cardrev.glitch .in{animation:gl .22s steps(2) 9 both;border-style:dashed}
+#cardrev.glitch b{font-family:ui-monospace,Menlo,monospace;letter-spacing:.08em;text-shadow:3px 0 #3DF5E0,-3px 0 #FF3DCB}
+@keyframes gl{0%{transform:translate(0,0) skewX(0)}25%{transform:translate(-9px,3px) skewX(6deg)}50%{transform:translate(8px,-4px) skewX(-8deg);filter:hue-rotate(90deg)}75%{transform:translate(-4px,2px) skewX(3deg)}100%{transform:none}}
+@media (prefers-reduced-motion:reduce){#cardrev.glitch .in{animation:none}}
 /* البطاقات السرية */
 .scards{margin:0 0 14px;text-align:center}
 .sc-h{font-family:var(--head);font-weight:700;font-size:20px;margin-bottom:8px}
@@ -566,6 +570,8 @@ const SFX = {
   ok:   [[659, 0, .16, "sine", .2], [880, .09, .16, "sine", .2], [1319, .18, .34, "sine", .2]],
   no:   [[150, 0, .34, "sawtooth", .16, 85], [112, 0, .34, "square", .07, 64]],
   tick: [[1000, 0, .06, "sine", .1]],
+  glitch: [[90, 0, .12, "square", .14, 800], [1400, .1, .08, "sawtooth", .1, 120], [200, .2, .1, "square", .14, 60], [900, .32, .06, "square", .1], [60, .4, .5, "sawtooth", .16, 40]],
+  boom: [[120, 0, .5, "sawtooth", .2, 30], [80, 0, .6, "square", .14, 25], [400, 0, .08, "square", .1, 90]],
   horn: [[220, 0, .55, "sawtooth", .16, 233], [277, 0, .55, "sawtooth", .1, 294], [330, .05, .5, "square", .05, 349]],
   fire: [[440, 0, .1, "square", .1], [554, .08, .1, "square", .1], [659, .16, .1, "square", .1], [880, .24, .35, "square", .12], [1320, .24, .35, "sine", .1]],
   card: [[300, 0, .09, "triangle", .14, 900], [1200, .1, .28, "sine", .14], [1600, .2, .3, "sine", .08]],
@@ -727,6 +733,7 @@ function viewSetup(){
           <li><b>باس</b> (مرة): ترمي الدور على الخصم بمخاطرة — لو غلط ينخصم منه ${fmt(PASS_RISK)}.</li>
           <li><b>جوابين</b> (مرة): تجاوب مرتين في نفس الدور.</li>
           <li><b>فخ النقاط</b> (مرة باللعبة): تفعّلونه قبل جوابكم. لو الجواب صح، تاخذون نقاطه وتنخصم نفس النقاط من الخصم. لو غلط راح عليكم.</li>
+          <li><b>عطل السستم:</b> مرة بنص كل لعبة، فئة من اللوحة تتعطل فجأة، ومربعاتها اللي ما انلعبت تصير من فئة ثانية ما اخترتوها.</li>
           <li><b>القفل</b> (مرة باللعبة): في دوركم تقفلون رقم جواب على الخصم، فما يقدر ياخذه بهالسؤال. لو قاله يروح دوره.</li>
           <li><b>التحدي</b> (مرة باللعبة): قبل ما يجاوب الخصم تتحدونه. لو جاوب صح نقاطه دبل، ولو غلط أو خلص وقته ينخصم منه ${fmt(DARE_PEN)}.</li>
           <li><b>الرهان</b> (مرة باللعبة): قبل ما يبدأ السؤال تراهنون على عدد أجوبتكم (٣ إلى ٦). لو وصلتوه تكسبون العدد × ${fmt(BET_WIN)}، ولو لا ينخصم ${fmt(BET_LOSE)}.</li>
@@ -767,7 +774,7 @@ function teamBox(i, live, bad){
   const q = S.q, u = S.used[i], mine = live && q.turn === i && !(q.cd && q.cd.id === 16 && q.cd.team === i);
   return `<div class="team ${q.turn === i && !q.over ? "turn" : ""} ${bad === i ? "shake" : ""}" style="--c:var(--${i ? "b" : "a"});--cs:var(--${i ? "b" : "a"}-soft)">
     <div class="hd"><span class="nm">${esc(TN(i))}</span><span class="st">${[live && q.turn === i && q.risk ? "مخاطرة −" + fmt(PASS_RISK) : "", q.bet && q.bet[i] ? "🎯 رهان " + fmt(q.bet[i]) : "", live && q.turn === i && q.dare === 1 - i ? "⚔️ عليكم تحدي" : "", S.streak && S.streak[i] >= 2 && opt("fire") ? "🔥 " + fmt(S.streak[i]) : ""].filter(Boolean).join(" · ")}</span></div>
-    <div class="sc">${fmt(S.score[i])}</div>
+    <div class="sc">${scoreTxt(i)}</div>
     <div class="lf">
       <button data-life="hint" ${mine && u.hint < HINTS ? "" : "disabled"}>تلميح ${fmt(HINTS - u.hint)}</button>
       <button data-life="pass" ${mine && !u.pass && !q.risk ? "" : "disabled"}>باس</button>
@@ -798,6 +805,8 @@ function viewQuestion(){
       <span class="tag" id="round"></span>
       ${S.solo ? `<span class="tag">👤 لاعب واحد يجاوب</span>` : ""}
       ${q.gold ? `<span class="tag ctag good">⭐ سؤال ذهبي: النقاط دبل</span>` : ""}
+      ${q.bomb ? `<span class="tag ctag bad">💣 قنبلة: الوقت النص</span>` : ""}
+      ${q.flip ? `<span class="tag ctag good">🔃 الأرقام مقلوبة</span>` : ""}
       ${q.luck ? `<span class="tag ctag good">🎲 سؤال الحظ ${fmt(q.luck.v)} · ${esc(S.names[q.luck.team])}</span>` : ""}
       ${q.cd ? `<span class="tag ctag ${CD(q.cd.id).g ? "good" : "bad"}">🃏 ${esc(CD(q.cd.id).n)} · ${esc(S.names[q.cd.team])}</span>` : ""}
       <span class="tag">${hasTraps(L)
@@ -814,7 +823,7 @@ function viewQuestion(){
     </div>
     <div class="slots">
       ${L.a.map((a, i) => {
-        const by = q.got[i], pts = (i + 1) * STEP;
+        const by = q.got[i], pts = ptsOf(i);
         if(by !== undefined) return `<div class="slot got ${by < 0 ? "" : "t" + by} ${pop === i ? "pop" : ""}">${pop === i ? `<i class="swoop" aria-hidden="true">⭐</i>` : ""}<span class="n">${fmt(i + 1)}</span><span class="tx">${esc(ansName(a))}</span><span class="pt">+${fmt(pts)}</span></div>`;
         if(show) return `<button class="slot ${q.over ? "miss" : "peek"}" ${q.over ? "disabled" : `data-award="${i}"`}><span class="n">${fmt(i + 1)}</span><span class="tx">${esc(ansName(a))}</span><span class="pt">+${fmt(pts)}</span></button>`;
         return q.hints && q.hints[i]
@@ -885,7 +894,7 @@ function viewBoard(){
         <div class="mid"><span class="ic">${catIcon(c)}</span><span class="nm">${esc(c.name)}</span><small>${left ? "باقي " + fmt(left) : "خلصت"}</small></div>
         <div class="tiles">${leftCol.map((j) => tile(j, js.indexOf(j))).join("")}</div>
       </div>`; }).join("")}</div>
-    <div class="final bscore">${[0,1].map(i => `<div class="team ${i === p ? "turn" : ""}" style="--c:var(--${i ? "b" : "a"});--cs:var(--${i ? "b" : "a"}-soft)"><div class="nm">${esc(TN(i))}</div><div class="sc">${fmt(S.score[i])}</div>
+    <div class="final bscore">${[0,1].map(i => `<div class="team ${i === p ? "turn" : ""}" style="--c:var(--${i ? "b" : "a"});--cs:var(--${i ? "b" : "a"}-soft)"><div class="nm">${esc(TN(i))}</div><div class="sc">${scoreTxt(i)}</div>
       <div class="muted sm">تلميح ${fmt(HINTS - S.used[i].hint)} · ${S.used[i].pass ? "الباس انستخدم" : "باس"} · ${S.used[i].dbl ? "الجوابين انستخدم" : "جوابين"} · ${S.used[i].amb ? "فخ النقاط انستخدم" : "فخ النقاط"} · ${S.used[i].steal ? "البوق انستخدم" : "بوق الجواب"} · ${["lock:القفل","dare:التحدي","bet:الرهان","swapq:تبديل السؤال"].filter(x => !S.used[i][x.split(":")[0]]).map(x => x.split(":")[1]).join(" · ") || "الوسائل الجديدة خلصت"}${S.solo ? " · " + (S.used[i].team ? "الاستشارة انستخدمت" : "استشارة الفريق") : ""}</div></div>`).join("")}</div>
     ${U.length ? `<div class="row center tools"><button class="btn ghost sm" data-act="undo">تراجع عن آخر حركة</button></div>` : ""}
     ${refOn() && showQR ? `<div class="card" style="margin-top:12px">${qrBox()}</div>` : ""}`;
@@ -924,7 +933,7 @@ function paintTimer(){
 }
 // عدّاد واحد كل ثانية: وقت دور الفريق + وقت الجولة كلها
 function startTimer(){
-  left = S.seconds;
+  left = turnSecs();
   if(tick) return;
   tick = setInterval(() => {
     if(S.q.paused) return;                                             // موقّف: الوقتين واقفين
@@ -951,10 +960,13 @@ function startGame(){
   S.cards = dealCards(); S.pend = null; S.drew = false; S.note = null;
   // المربعات المخفية: السؤال الذهبي وسؤال الحظ (لو مشغلين)
   const n = S.order.length, rnd = k => Math.floor(Math.random() * k);
-  S.goldTile = opt("gold") && n ? rnd(n) : -1;
-  S.luckTile = -1;
-  if(opt("luck") && n > 1){ do { S.luckTile = rnd(n); } while(S.luckTile === S.goldTile); }
-  S.luckV = LUCK_VALUES[rnd(LUCK_VALUES.length)];   // اللوحة: كل فريق يختار فئة ورقم بدوره
+  const idx = S.order.map((_, j) => j); for(let i = idx.length - 1; i > 0; i--){ const j = rnd(i + 1); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+  ["gold", "luck", "bomb", "gift", "flip"].forEach(k => { S[k + "Tile"] = opt(k) && idx.length ? idx.pop() : -1; });
+  S.luckV = LUCK_VALUES[rnd(LUCK_VALUES.length)];
+  // العطلين: يصيرون بعد عدد أسئلة عشوائي حوالين نص اللعبة
+  S.glitched = false; S.glitchAt = n >= 4 ? Math.max(2, Math.floor(n * (.35 + Math.random() * .3))) : -1;
+  S.blind = 0; S.blindDone = false; S.blindAt = opt("blind") && n >= 5 ? Math.max(1, Math.floor(n * (.25 + Math.random() * .4))) : -1;
+  if(S.blindAt === S.glitchAt) S.blindAt++;   // اللوحة: كل فريق يختار فئة ورقم بدوره
 }
 // الفريق اللي عليه الدور يختار مربع من اللوحة، ويبدأ هو الجواب
 /* ===================== البطاقات السرية =====================
@@ -994,7 +1006,36 @@ const OPTS = {
   ko:{ n:"الضربة القاضية", d:"الجواب رقم ٩ ورقم ١٠ لنفس الفريق بنفس السؤال = ٥٠٠ زيادة" },
   last10:{ n:"آخر ١٠ ثواني دبل", d:"آخر ١٠ ثواني من وقت الجولة، كل جواب نقاطه دبل" },
   back:{ n:"الرجعة", d:"لو فريق تأخر بـ٢٠٠٠ نقطة أو أكثر، ياخذ تلميح زيادة (مرة باللعبة)" },
+  bomb:{ n:"القنبلة", d:"مربع مخفي: اللي يفتحه ينخصم منه ٣٠٠، ووقت كل دور بالسؤال يصير النص" },
+  gift:{ n:"مربع الهدية", d:"مربع مخفي: اللي يفتحه ترجع له وسيلة استخدمها قبل، أو تلميح زيادة" },
+  flip:{ n:"قلب الأرقام", d:"مربع مخفي: النقاط تنقلب، الجواب رقم ١ بـ١٠٠٠ ورقم ١٠ بـ١٠٠" },
+  blind:{ n:"عطل النقاط", d:"مرة باللعبة بشكل عشوائي: نقاط الفريقين تختفي عن الكل لمدة سؤالين" },
 };
+const BOMB_PEN = 300, BLIND_N = 2;
+// نقاط الجواب رقم i في السؤال الحالي (تنقلب في مربع «قلب الأرقام»)
+const ptsOf = i => (S.q && S.q.flip ? curList().a.length - i : i + 1) * STEP;
+const turnSecs = () => S.q && S.q.bomb ? Math.max(5, Math.ceil(S.seconds / 2)) : S.seconds;
+const scoreTxt = i => S.blind > 0 && S.screen !== "end" ? "؟؟؟" : fmt(S.score[i]);
+const addInfo = t => { S.info = S.info ? S.info + " — " + t : t; };
+const GIFTS = { pass:"الباس", dbl:"الجوابين", amb:"فخ النقاط", steal:"بوق الجواب", lock:"القفل", dare:"التحدي", bet:"الرهان", swapq:"تبديل السؤال" };
+// عطل السستم: مرة بنص كل لعبة، فئة من اللوحة «تتعطل» ومربعاتها اللي ما انلعبت تصير أسئلة من فئة ثانية ما اختاروها
+function glitch(){
+  S.glitched = true;
+  const open = id => S.order.map((o, j) => o.c === id && S.done[j] === undefined ? j : -1).filter(j => j >= 0);
+  const mine = [...new Set(S.order.map(o => o.c))], victims = mine.filter(id => open(id).length);
+  if(!victims.length) return false;
+  const vid = victims[Math.floor(Math.random() * victims.length)], slots = open(vid);
+  const pool = BANK.filter(c => !mine.includes(c.id) && c.lists.length >= slots.length);
+  if(!pool.length) return false;
+  const nc = pool[Math.floor(Math.random() * pool.length)], pl = played(nc.id);
+  const ls = nc.lists.map((L, l) => ({ L, l })).sort((x, y) => (pl.includes(x.L.t) - pl.includes(y.L.t)) || (ease(y.L) - ease(x.L))).slice(0, slots.length);
+  ls.sort((x, y) => ease(y.L) - ease(x.L));
+  slots.forEach((j, k) => { S.order[j] = { c:nc.id, l:ls[k].l, t:ls[k].L.t }; });
+  addInfo(`⚠️ عطل بالسستم: فئة «${cat(vid).name}» تعطلت، وصار بدالها «${nc.name}»`);
+  sfx("glitch"); flash(false, "⚠️ عطل بالسستم", "ERROR", `فئة «${cat(vid).name}» اختفت… وطلعت بدالها «${nc.name}»`, "", 4200);
+  const el = document.getElementById("cardrev"); if(el) el.classList.add("glitch");
+  return true;
+}
 const opt = k => !!(S.opt && S.opt[k]);
 const FIRE_N = 3, FIRE_PTS = 200, KO_PTS = 500, DARE_PEN = 300, BET_LOSE = 300, BET_WIN = 150, BACK_GAP = 2000;
 const LUCK_VALUES = [300, 400, 500, 600, 700, 800];
@@ -1033,6 +1074,13 @@ function startQuestion(){
   if(S.done && S.qi === S.goldTile){ S.q.gold = true; msg.t = "⭐ سؤال ذهبي: كل النقاط دبل! — " + msg.t; sfx("gold"); flash(true, "طلع لكم", "السؤال الذهبي", "كل جواب بهالسؤال نقاطه دبل", "", 2600); }
   if(S.done && S.qi === S.luckTile){ S.q.luck = { v:S.luckV, team:S.q.turn }; msg.t = `🎲 سؤال الحظ على ${S.names[S.q.turn]}: ${fmt(S.luckV)} نقطة — ` + msg.t; sfx("card");
     flash(true, "سؤال الحظ", fmt(S.luckV) + " نقطة", `${S.names[S.q.turn]}: لو جمعتوا أكثر من خصمكم بهالسؤال تاخذونها، ولو أقل تنخصم منكم`, "", 3400); }
+  if(S.done && S.qi === S.bombTile){ const t = S.q.turn; S.q.bomb = true; S.score[t] -= BOMB_PEN; left = turnSecs(); msg.t = `💣 قنبلة! −${fmt(BOMB_PEN)} على ${S.names[t]}، ووقت كل دور النص — ` + msg.t; sfx("boom");
+    flash(false, "فتحتوا", "💣 القنبلة", `−${fmt(BOMB_PEN)} على ${S.names[t]}، ووقت كل دور بهالسؤال يصير النص`, "", 3000); }
+  if(S.done && S.qi === S.flipTile){ S.q.flip = true; msg.t = "🔃 قلب الأرقام: الجواب رقم ١ هو الأغلى ورقم ١٠ الأرخص — " + msg.t; sfx("card");
+    flash(true, "مربع مخفي", "🔃 قلب الأرقام", "النقاط انقلبت: الجواب رقم ١ بـ" + fmt(curList().a.length * STEP) + " ورقم ١٠ بـ" + fmt(STEP), "", 3000); }
+  if(S.done && S.qi === S.giftTile){ const t = S.q.turn, u = S.used[t], ks = Object.keys(GIFTS).filter(k => u[k]); let what;
+    if(ks.length){ const k = ks[Math.floor(Math.random() * ks.length)]; delete u[k]; what = "رجعت لكم وسيلة «" + GIFTS[k] + "»"; } else { u.hint = (u.hint || 0) - 1; what = "خذتوا تلميح زيادة"; }
+    S.q.gift = what; msg.t = `🎁 مربع الهدية لـ ${S.names[t]}: ${what} — ` + msg.t; sfx("gold"); flash(true, "مربع الهدية", "🎁 هدية", what, TN(t), 3000); }
   // بطاقة سرية انسحبت قبل هالسؤال: تأثيرها يبدأ هني
   if(S.pend){
     const cd = S.q.cd = { id:S.pend.id, team:S.pend.team }, L = curList(); S.pend = null;
@@ -1076,7 +1124,7 @@ function swapTurn(){
   msg = { k:"", t:`الدور صار لـ ${S.names[q.turn]}` };
 }
 function award(i){
-  const q = S.q, L = curList(); let pts = (i + 1) * STEP, tagc = "";
+  const q = S.q, L = curList(); let pts = ptsOf(i), tagc = "";
   if(q.lock && q.lock.i === i && q.lock.team === q.turn){                 // القفل: هالجواب مقفول على هالفريق
     q.last = null; peek = false; sfx("lock"); S.streak = S.streak || [0,0]; S.streak[q.turn] = 0;
     msg = { k:"no", t:`🔒 الجواب رقم ${fmt(i + 1)} مقفول على ${S.names[q.turn]} — راح الدور` }; return nextTurn();
@@ -1099,7 +1147,7 @@ function award(i){
   S.log = S.log || { best:null, got:[0,0], traps:[0,0], at:Date.now() };
   S.log.got[q.turn]++;
   if(!S.log.best || pts > S.log.best.pts) S.log.best = { pts, a:ansName(L.a[i]), team:q.turn, t:L.t };
-  if(i >= 8 && !bonus) goldBurst(ansName(L.a[i]), q.turn);                     // الجواب ٩ أو ١٠: «جواب ذهبي»
+  if((q.flip ? i <= 1 : i >= 8) && !bonus) goldBurst(ansName(L.a[i]), q.turn);                     // الجواب ٩ أو ١٠: «جواب ذهبي»
   msg = { k:"ok", t:`صح! ${ansName(L.a[i])} — +${fmt(pts)}${tagc} لـ ${TN(q.turn)}${bonus}` };
   if(allFound()) return endQuestion();
   if(q.dbl){ q.dbl = false; q.risk = false; msg.t += " — باقي لكم جواب ثاني"; startTimer(); }
@@ -1234,7 +1282,7 @@ function useLife(k, t, v){
 // ختم الحركة: يزيد مع كل تغيير في اللعب. أمر الحكم اللي معه ختم قديم (ضغطة مكررة أو متأخرة) ينرفض.
 function bump(){ S.seq = (S.seq || 0) + 1; }
 function snap(){
-  U.push(JSON.stringify({ score:S.score, used:S.used, q:S.q, qi:S.qi, screen:S.screen, left, log:S.log, done:S.done, picker:S.picker, cards:S.cards, pend:S.pend, drew:S.drew, note:S.note, streak:S.streak, cb:S.cb, info:S.info, ord:S.order }));
+  U.push(JSON.stringify({ score:S.score, used:S.used, q:S.q, qi:S.qi, screen:S.screen, left, log:S.log, done:S.done, picker:S.picker, cards:S.cards, pend:S.pend, drew:S.drew, note:S.note, streak:S.streak, cb:S.cb, info:S.info, ord:S.order, gl:S.glitched, blind:S.blind, bd:S.blindDone }));
   if(U.length > 20) U.shift();
 }
 function undo(){
@@ -1242,6 +1290,7 @@ function undo(){
   const s = JSON.parse(U.pop());
   S.score = s.score; S.used = s.used; S.q = s.q; S.qi = s.qi; S.screen = s.screen; if(s.log) S.log = s.log; if(s.done) S.done = s.done; if(s.picker !== undefined) S.picker = s.picker;
   if(s.cards){ S.cards = s.cards; S.pend = s.pend || null; S.drew = !!s.drew; S.note = s.note || null; }
+  if(s.gl !== undefined){ S.glitched = s.gl; S.blind = s.blind || 0; S.blindDone = !!s.bd; }
   if(s.ord){ S.order = s.ord; S.streak = s.streak || [0,0]; S.cb = s.cb || [false,false]; S.info = s.info || null; }
   lockPick = false; betPick = -1;
   bump(); peek = false; stopTimer();
@@ -1278,6 +1327,11 @@ function advance(){
     if(opt("back")){ const d = S.score[0] - S.score[1], t = d < 0 ? 0 : 1; S.cb = S.cb || [false,false];
       if(Math.abs(d) >= BACK_GAP && !S.cb[t]){ S.cb[t] = true; S.used[t].hint = (S.used[t].hint || 0) - 1; sfx("card");
         S.info = `🎁 الرجعة: ${S.names[t]} متأخرين بـ${fmt(Math.abs(d))} نقطة، خذوا تلميح زيادة`; } }
+    const doneN = Object.keys(S.done).length;
+    if(S.blind > 0){ S.blind--; if(!S.blind){ addInfo("📡 رجعت النقاط!"); sfx("card"); } }
+    else if(!S.blindDone && S.blindAt > 0 && doneN >= S.blindAt){ S.blindDone = true; S.blind = BLIND_N; addInfo("📡 عطل النقاط: النقاط مخفية لمدة سؤالين");
+      sfx("glitch"); flash(false, "⚠️ عطل النقاط", "؟؟؟", "نقاط الفريقين اختفت… وبترجع بعد سؤالين", "", 3600); const el = document.getElementById("cardrev"); if(el) el.classList.add("glitch"); }
+    if(!S.glitched && S.glitchAt > 0 && doneN >= S.glitchAt) glitch();
     return;
   }
   S.qi++; if(S.qi >= S.order.length) S.screen = "end"; else startQuestion();
@@ -1297,7 +1351,7 @@ function progress(){
 /* ===================== الربط مع جوال الحكم ===================== */
 function publish(){
   if(!canRef()) return;
-  const st = { screen:S.screen, names:[TN(0), TN(1)], score:S.score, ref:!!S.ref, seq:S.seq || 0, undo:U.length > 0 };
+  const st = { screen:S.screen, names:[TN(0), TN(1)], score:S.score, blind:S.blind > 0 && S.screen !== "end", info:S.info || "", ref:!!S.ref, seq:S.seq || 0, undo:U.length > 0 };
   if(S.screen === "board") Object.assign(st, { picker:S.picker, left:boardLeft(), total:S.order.length, drew:!!S.drew,
     cards:(S.cards || []).map(c => c.by === undefined ? {} : { by:c.by, n:CD(c.id).n, g:CD(c.id).g }),
     note:S.note ? `«${CD(S.note.id).n}» لـ ${S.names[S.note.team]}: ${CD(S.note.id).d}` : "", opp:!!(S.pend && S.pend.id === 19),
@@ -1314,7 +1368,7 @@ function publish(){
       bets: q.fresh ? [0,1].map(t => !S.used[t].bet && !blocked16(t)) : [false,false], bet:q.bet || {}, swapq: !!q.fresh && !S.used[q.turn].swapq,
       gold:!!q.gold, luck:q.luck ? q.luck.v : 0,
       steal: q.last && !S.used[1 - q.last.team].steal ? { team:1 - q.last.team, n:ansName(L.a[q.last.i]), p:q.last.pts } : null,
-      answers: L.a.map((a, i) => ({ n:ansName(a), p:(i + 1) * STEP, by:q.got[i], h:q.hints && q.hints[i] ? hintFor(L, i) : undefined })) });
+      answers: L.a.map((a, i) => ({ n:ansName(a), p:ptsOf(i), by:q.got[i], h:q.hints && q.hints[i] ? hintFor(L, i) : undefined })) });
   }
   if(net) fetch("/state?k=" + net.key, { method:"POST", body:JSON.stringify(st) }).then(r => { if(r.status === 403) refreshNet(); }).catch(() => {});
   else { p2p.last = st; p2p.conns.forEach(c => { try{ if(c.open) c.send({ st }); }catch(e){} }); }
@@ -1449,8 +1503,8 @@ function refApp(){
       : link === "connecting" ? "يتصل باللعبة…"
       : "انقطع الاتصال باللعبة، وأحاول أرجّعه لحالي… تأكد إن شاشة اللعبة مفتوحة وإن الجوال فيه إنترنت. لو طوّل، امسح الكود اللي على الشاشة من جديد."}</div></div>`; return; }
     const head = `<div class="row center" style="margin-bottom:6px">${themeBtn()}</div><div class="row" style="justify-content:space-between;font-weight:800">
-      <span style="color:${col(0)}">${esc(st.names[0])}: ${fmt(st.score[0])}</span>
-      <span style="color:${col(1)}">${esc(st.names[1])}: ${fmt(st.score[1])}</span></div>`;
+      <span style="color:${col(0)}">${esc(st.names[0])}: ${st.blind ? "؟؟؟" : fmt(st.score[0])}</span>
+      <span style="color:${col(1)}">${esc(st.names[1])}: ${st.blind ? "؟؟؟" : fmt(st.score[1])}</span></div>${st.info && st.screen === "board" ? `<div class="rcat" style="margin-top:8px;font-size:14px">${esc(st.info)}</div>` : ""}`;
     if(st.screen === "board" && st.ref){
       $app.innerHTML = `<div class="ref">${head}
         <div class="who" style="color:${col(st.picker)}">${esc(st.names[st.picker])} ${st.opp ? "يجاوبون (الخصم يختار لهم)" : "يختارون"}</div>
