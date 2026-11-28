@@ -418,12 +418,37 @@ input[type=text]:focus{outline:none;border-color:var(--a-fill);box-shadow:0 0 14
 #demo{background:var(--bg)} #demo .cta{color:var(--b)}
 .link.go{color:var(--accent)}
 .handle{color:var(--muted2)}
+/* البطاقات السرية */
+.scards{margin:0 0 14px;text-align:center}
+.sc-h{font-family:var(--head);font-weight:700;font-size:20px;margin-bottom:8px}
+.sc-h small{font-family:var(--ui);font-weight:600;font-size:14px;color:var(--muted);margin-inline-start:8px}
+.sc-r{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.scard{width:118px;height:76px;border-radius:12px;border:2px solid var(--b-fill);background:var(--pink-soft);color:var(--b);display:grid;place-content:center;gap:2px;padding:4px;
+  box-shadow:0 0 16px var(--glow-b);transition:transform .25s cubic-bezier(.3,1.5,.5,1)}
+.scard b{font-family:var(--head);font-weight:700;font-size:30px;line-height:1.1}
+.scard:not(:disabled):hover,.scard:not(:disabled):focus-visible{transform:scale(1.07) rotate(-3deg)}
+.scard:disabled{opacity:.45;box-shadow:none}
+.scard.open{background:var(--panel);border-color:var(--c);box-shadow:none;color:var(--text)}
+.scard.open b{font-size:17px} .scard.open small{font-size:12px;color:var(--muted)}
+.sc-n{margin-top:10px;font-weight:600;font-size:16px} .sc-n.good,.ctag.good{color:var(--accent)} .sc-n.bad,.ctag.bad{color:var(--b)}
+.ctag.good{border-color:var(--a-fill)} .ctag.bad{border-color:var(--b-fill)}
+.slot.trapslot.shown{border-style:solid;opacity:.75}
+#cardrev{background:rgba(6,7,15,.86);cursor:pointer}
+#cardrev .in{display:grid;justify-items:center;gap:10px;text-align:center;max-width:min(90vw,640px);border:3px solid var(--k);border-radius:22px;background:#14162A;padding:32px 40px;box-shadow:0 0 60px var(--kg)}
+#cardrev.good{--k:#3DF5E0;--kg:rgba(61,245,224,.5)} #cardrev.bad{--k:#FF3DCB;--kg:rgba(255,61,203,.5)}
+#cardrev small{font-weight:800;font-size:18px;color:var(--k);letter-spacing:.04em}
+#cardrev b{font-family:var(--head);font-weight:700;font-size:clamp(44px,8vw,88px);line-height:1.15;color:var(--k);text-shadow:0 0 30px var(--kg)}
+#cardrev span{font-size:clamp(18px,2.6vw,26px);font-weight:600;color:#fff;line-height:1.6}
+#cardrev i{font-style:normal;color:#A9ADD6;font-weight:600}
+@media (prefers-reduced-motion:no-preference){#cardrev .in{animation:cardflip .7s cubic-bezier(.3,1.5,.5,1) both}}
+@keyframes cardflip{from{transform:perspective(900px) rotateY(180deg) scale(.5);opacity:0}to{transform:none;opacity:1}}
+@media (max-width:520px){.scard{width:calc(50% - 8px);height:64px}}
 </style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
 
-<script src="bank.js?v=436add55"></script>
+<script src="bank.js?v=cdb8ceac"></script>
 <script>
 // بنك الأسئلة (BANK و US و UK) انتقل إلى ملف bank.js
 
@@ -699,9 +724,9 @@ function viewQR(){
 }
 
 function teamBox(i, live, bad){
-  const q = S.q, u = S.used[i], mine = live && q.turn === i;
+  const q = S.q, u = S.used[i], mine = live && q.turn === i && !(q.cd && q.cd.id === 16 && q.cd.team === i);
   return `<div class="team ${q.turn === i && !q.over ? "turn" : ""} ${bad === i ? "shake" : ""}" style="--c:var(--${i ? "b" : "a"});--cs:var(--${i ? "b" : "a"}-soft)">
-    <div class="hd"><span class="nm">${esc(TN(i))}</span><span class="st">${mine && q.risk ? "مخاطرة −" + fmt(PASS_RISK) : ""}</span></div>
+    <div class="hd"><span class="nm">${esc(TN(i))}</span><span class="st">${live && q.turn === i && q.risk ? "مخاطرة −" + fmt(PASS_RISK) : ""}</span></div>
     <div class="sc">${fmt(S.score[i])}</div>
     <div class="lf">
       <button data-life="hint" ${mine && u.hint < HINTS ? "" : "disabled"}>تلميح ${fmt(HINTS - u.hint)}</button>
@@ -723,6 +748,7 @@ function viewQuestion(){
       <span class="tag">${catIcon(c)} ${esc(c.name)}</span>
       <span class="tag">${esc(progress())}</span>
       <span class="tag" id="round"></span>
+      ${q.cd ? `<span class="tag ctag ${CARDS[q.cd.id].g ? "good" : "bad"}">🃏 ${esc(CARDS[q.cd.id].n)} · ${esc(S.names[q.cd.team])}</span>` : ""}
       <span class="tag">${hasTraps(L)
         ? (() => { const left = L.x.filter((_, i) => !(q.traps && q.traps[i])).length; return left ? "● ".repeat(left) + (left === 1 ? "فخ واحد مخفي" : left === 2 ? "فخّين مخفيين" : fmt(left) + " فخاخ مخفية") : "الفخاخ انكشفت كلها"; })()
         : q.wrong < TRAPS.length ? "● ".repeat(TRAPS.length - q.wrong) + "الفخ الجاي −" + fmt(TRAPS[q.wrong]) : "الفخاخ خلصت"}</span>
@@ -746,7 +772,7 @@ function viewQuestion(){
       }).join("")}
       ${hasTraps(L) ? L.x.map((x, j) => {
         const no = fmt(L.a.length + 1 + j), pen = "−" + fmt(TRAPS[j] || 0), hit = q.traps && q.traps[j];
-        if(hit) return `<div class="slot trapslot got t${(q.trapBy || {})[j] || 0} ${tpop === j ? "pop" : ""}"><span class="n">${no}</span><span class="tx">${esc(ansName(x))}</span><span class="pt">${pen}</span></div>`;
+        if(hit) return `<div class="slot trapslot got ${(q.trapBy || {})[j] === -1 ? "shown" : "t" + ((q.trapBy || {})[j] || 0)} ${tpop === j ? "pop" : ""}"><span class="n">${no}</span><span class="tx">${esc(ansName(x))}</span><span class="pt">${pen}</span></div>`;
         if(show) return `<button class="slot trapslot ${q.over ? "miss" : "peek"}" ${q.over ? "disabled" : `data-trap="${j}"`}><span class="n">${no}</span><span class="tx">${esc(ansName(x))}</span><span class="pt">${pen}</span></button>`;
         return `<div class="slot trapslot"><span class="n">${no}</span><span class="tx">؟ ؟ ؟ ؟</span><span class="pt">${pen}</span></div>`;
       }).join("") : ""}
@@ -790,7 +816,14 @@ function viewBoard(){
       ${refOn() ? `<button class="btn ghost sm ${showQR ? "on" : ""}" data-act="qr">كود الحكم</button>` : ""}
       <button class="btn ghost sm" data-act="quit">إنهاء الجولة</button>
     </div>
-    <div class="picker" style="--c:var(--${p ? "b" : "a"})">${esc(TN(p))} <span>يختارون فئة ورقم</span></div>
+    <div class="picker" style="--c:var(--${p ? "b" : "a"})">${esc(TN(p))} <span>${S.pend && S.pend.id === 19 ? `يجاوبون، و${esc(S.names[1 - p])} يختارون لهم الفئة والرقم` : "يختارون فئة ورقم"}</span></div>
+    ${(S.cards || []).length ? `<div class="scards">
+      <div class="sc-h">البطاقات السرية <small>${cardsLeft() ? (S.drew ? "سحبتوا بطاقة بهالدور" : `باقي ${fmt(cardsLeft())} — ${esc(S.names[p])} يقدرون يسحبون وحدة قبل السؤال`) : "خلصت"}</small></div>
+      <div class="sc-r">${S.cards.map((c, k) => c.by === undefined
+        ? `<button class="scard" data-card="${k}" ${S.drew ? "disabled" : ""} aria-label="بطاقة سرية ${fmt(k + 1)}"><b>؟</b></button>`
+        : `<div class="scard open ${CARDS[c.id].g ? "good" : "bad"}" style="--c:var(--${c.by ? "b" : "a"}-fill)"><b>${esc(CARDS[c.id].n)}</b><small>${esc(emo(c.by))} ${esc(S.names[c.by])}</small></div>`).join("")}</div>
+      ${S.note ? `<div class="sc-n ${CARDS[S.note.id].g ? "good" : "bad"}">🃏 «${esc(CARDS[S.note.id].n)}» لـ ${esc(S.names[S.note.team])}: ${esc(CARDS[S.note.id].d)}</div>` : ""}
+    </div>` : ""}
     <div class="board">${ids.map(id => {
       const c = cat(id), js = S.order.map((o, j) => o.c === id ? j : -1).filter(j => j >= 0), left = js.filter(j => S.done[j] === undefined).length;
       const right = js.slice(0, 3), leftCol = js.slice(3, 6);
@@ -857,9 +890,59 @@ function startGame(){
   const chosen = [];
   S.order = S.picked.flatMap(id => pickLists(cat(id), chosen).map(l => ({ c:id, l, t:cat(id).lists[l].t })));
   U = []; S.hadRef = !!S.ref;
-  S.done = {}; S.picker = 0; S.screen = "board"; S.q = null; bump();   // اللوحة: كل فريق يختار فئة ورقم بدوره
+  S.done = {}; S.picker = 0; S.screen = "board"; S.q = null; bump();
+  S.cards = dealCards(); S.pend = null; S.drew = false; S.note = null;   // اللوحة: كل فريق يختار فئة ورقم بدوره
 }
 // الفريق اللي عليه الدور يختار مربع من اللوحة، ويبدأ هو الجواب
+/* ===================== البطاقات السرية =====================
+   كل لعبة فيها ٤ بطاقات مقلوبة للفريقين، تنسحب عشوائي من العشرين. الفريق اللي عليه الدور في اللوحة يقدر يسحب
+   وحدة قبل ما يختار سؤاله (بطاقة وحدة بالدور). g:1 تفيد اللي سحبها، g:0 تضره. now: تأثيرها فوري، والباقي على السؤال الجاي. */
+const CARDS = {
+  1:{ n:"دبل", g:1, d:"جوابكم الصح الجاي نقاطه مضاعفة" },
+  2:{ n:"هدية", g:1, now:1, d:"٢٠٠ نقطة لكم" },
+  3:{ n:"سرقة", g:1, now:1, d:"خذتوا ٣٠٠ نقطة من الخصم" },
+  4:{ n:"كاشف الفخ", g:1, d:"ينكشف فخ واحد من السؤال الجاي وما ينحسب على أحد" },
+  5:{ n:"درع", g:1, d:"أول فخ تطيحون فيه بالسؤال الجاي ما يخصم" },
+  6:{ n:"تلميح ببلاش", g:1, d:"تلميح لجواب بالسؤال الجاي بدون ما ينقص من تلميحاتكم" },
+  7:{ n:"وقت زيادة", g:1, d:"٢٠ ثانية زيادة على أول دور لكم" },
+  8:{ n:"فرصة ثانية", g:1, d:"أول غلط لكم بالسؤال الجاي ما ينقل الدور" },
+  9:{ n:"تجميد", g:1, d:"الخصم يفوّت أول دور له بالسؤال الجاي" },
+  10:{ n:"دورين", g:1, d:"تجاوبون مرتين ورا بعض بأول دور" },
+  11:{ n:"غرامة", g:0, now:1, d:"انخصم منكم ٢٠٠ نقطة" },
+  12:{ n:"نص النقاط", g:0, d:"جوابكم الصح الجاي بنص نقاطه" },
+  13:{ n:"هدية للخصم", g:0, now:1, d:"الخصم خذ ٢٠٠ نقطة" },
+  14:{ n:"طار الدور", g:0, now:1, d:"دوركم راح: الخصم يختار ويلعب الحين" },
+  15:{ n:"وقت قصير", g:0, d:"أول دور لكم بالسؤال الجاي ١٠ ثواني بس" },
+  16:{ n:"بدون وسائل", g:0, d:"لا تلميح ولا باس ولا جوابين بالسؤال الجاي" },
+  17:{ n:"الفخ دبل", g:0, d:"لو طحتوا في فخ بالسؤال الجاي، الخصم مضاعف" },
+  18:{ n:"واحد بس", g:0, d:"شخص واحد من فريقكم يجاوب بالسؤال الجاي، والباقي ساكتين" },
+  19:{ n:"الخصم يختار", g:0, d:"الخصم يختار لكم الفئة والرقم، وأنتم تجاوبون" },
+  20:{ n:"قلب الطاولة", g:0, now:1, d:"الفريقين تبادلوا النقاط" },
+};
+const N_CARDS = 4;
+function dealCards(){
+  const ids = Object.keys(CARDS).map(Number);
+  for(let i = ids.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+  return ids.slice(0, N_CARDS).map(id => ({ id }));
+}
+const cardsLeft = () => (S.cards || []).filter(c => c.by === undefined).length;
+// cd: بطاقة السؤال الحالي لو باقي تأثيرها ما انستخدم وتخص الفريق t
+const cdOn = (id, t) => { const c = S.q && S.q.cd; return !!(c && c.id === id && !c.used && (t === undefined || c.team === t)); };
+function drawCard(k){
+  const c = (S.cards || [])[k], p = S.picker;
+  if(S.screen !== "board" || !c || c.by !== undefined || S.drew) return;
+  const C = CARDS[c.id];
+  c.by = p; S.drew = true; bump();
+  if(c.id === 2) S.score[p] += 200;
+  else if(c.id === 3){ S.score[p] += 300; S.score[1 - p] -= 300; }
+  else if(c.id === 11) S.score[p] -= 200;
+  else if(c.id === 13) S.score[1 - p] += 200;
+  else if(c.id === 20) S.score = [S.score[1], S.score[0]];
+  else if(c.id === 14) S.picker = 1 - p;
+  else S.pend = { id:c.id, team:p };
+  S.note = { id:c.id, team:p };
+  sfx(C.g ? "ok" : "no"); cardBurst(c.id, p);
+}
 function pickTile(i){
   if(S.screen !== "board" || !S.order[i] || (S.done || {})[i] !== undefined) return;
   S.done[i] = S.picker; S.qi = i; S.screen = "question"; startQuestion();
@@ -867,6 +950,17 @@ function pickTile(i){
 function startQuestion(){
   S.q = { turn:S.done ? S.picker : S.qi % 2, got:{}, wrong:0, dbl:false, risk:false, over:false, rl:S.roundMin * 60, paused:true, fresh:true };
   bump(); msg = { k:"", t:"اقروا السؤال، ولما تكونون جاهزين اضغطوا «ابدأ» — الوقت واقف" }; peek = false; startTimer();
+  // بطاقة سرية انسحبت قبل هالسؤال: تأثيرها يبدأ هني
+  if(S.pend){
+    const cd = S.q.cd = { id:S.pend.id, team:S.pend.team }, L = curList(); S.pend = null;
+    if(cd.id === 4 && hasTraps(L)){ const j = Math.floor(Math.random() * L.x.length); S.q.traps = { [j]:true }; S.q.trapBy = { [j]:-1 }; cd.used = true; }
+    if(cd.id === 6){ S.q.hints = { 0:true }; cd.used = true; }
+    if(cd.id === 7) left += 20;
+    if(cd.id === 15) left = Math.min(10, left);
+    if(cd.id === 10) S.q.dbl = true;
+    if(cd.id === 7 || cd.id === 15 || cd.id === 10) cd.used = true;
+    msg = { k:"", t:`🃏 بطاقة «${CARDS[cd.id].n}» على ${S.names[cd.team]}: ${CARDS[cd.id].d} — اضغطوا «ابدأ» لما تجهزون` };
+  }
 }
 function endQuestion(){
   const q = S.q; q.over = true; q.dbl = q.risk = q.paused = false; peek = false; stopTimer(); bump();
@@ -876,6 +970,10 @@ function allFound(){ return Object.keys(S.q.got).length === curList().a.length; 
 function nextTurn(risk){
   const q = S.q;
   q.dbl = false; q.risk = !!risk; q.turn = 1 - q.turn; bump();
+  if(q.cd && q.cd.id === 9 && !q.cd.used && q.turn !== q.cd.team){          // تجميد: الخصم يفوّت أول دور له
+    q.cd.used = true; q.turn = q.cd.team; q.risk = false;
+    msg = { k:"", t:(msg ? msg.t + " — " : "") + `🧊 ${S.names[1 - q.turn]} متجمدين: الدور يرجع لـ ${S.names[q.turn]}` };
+  }
   startTimer();
 }
 // تغيير الدور يدوياً (من الشاشة أو من جوال الحكم): الدور يروح للفريق الثاني بوقت جديد، بدون خصم.
@@ -885,14 +983,16 @@ function swapTurn(){
   msg = { k:"", t:`الدور صار لـ ${S.names[q.turn]}` };
 }
 function award(i){
-  const q = S.q, L = curList(), pts = (i + 1) * STEP;
+  const q = S.q, L = curList(); let pts = (i + 1) * STEP, tagc = "";
+  if(cdOn(1, q.turn)){ pts *= 2; q.cd.used = true; tagc = " (دبل 🃏)"; }
+  else if(cdOn(12, q.turn)){ pts = Math.round(pts / 2); q.cd.used = true; tagc = " (نص النقاط 🃏)"; }
   q.got[i] = q.turn; S.score[q.turn] += pts; peek = false; bump();
   fx.pop = { i, at:Date.now() }; sfx("ok");
   S.log = S.log || { best:null, got:[0,0], traps:[0,0], at:Date.now() };
   S.log.got[q.turn]++;
   if(!S.log.best || pts > S.log.best.pts) S.log.best = { pts, a:ansName(L.a[i]), team:q.turn, t:L.t };
   if(i >= 8) goldBurst(ansName(L.a[i]), q.turn);                     // الجواب ٩ أو ١٠: «جواب ذهبي»
-  msg = { k:"ok", t:`صح! ${ansName(L.a[i])} — +${fmt(pts)} لـ ${TN(q.turn)}` };
+  msg = { k:"ok", t:`صح! ${ansName(L.a[i])} — +${fmt(pts)}${tagc} لـ ${TN(q.turn)}` };
   if(allFound()) return endQuestion();
   if(q.dbl){ q.dbl = false; q.risk = false; msg.t += " — باقي لكم جواب ثاني"; startTimer(); }
   else nextTurn();
@@ -909,10 +1009,14 @@ function miss(text, ti){
   }
   else if(!q.risk){ pen = TRAPS[q.wrong] || 0; q.wrong++; }
   if(q.risk) pen = PASS_RISK;                                          // دور المخاطرة: أي غلط (حتى الفخ) يخصم خصم المخاطرة
+  const trapHit = hasTraps(L) && ti !== undefined && fx.trap && fx.trap.i === ti;
+  if(trapHit && cdOn(5, q.turn)){ pen = 0; q.cd.used = true; text += " — 🛡️ الدرع حماكم"; }
+  else if(trapHit && cdOn(17, q.turn)){ pen *= 2; text += " — الخصم دبل 🃏"; }
   S.score[q.turn] -= pen; peek = false;
   fx.no = { team:q.turn, at:Date.now() }; sfx("no");
   msg = { k:"no", t: pen ? `${text} — −${fmt(pen)} على ${S.names[q.turn]}` : `${text} — بدون خصم` };
-  nextTurn();
+  if(cdOn(8, q.turn)){ q.cd.used = true; q.risk = false; msg.t += " — 🃏 فرصة ثانية: الدور باقي لكم"; bump(); startTimer(); }
+  else nextTurn();
 }
 function timeout(){
   const q = S.q;
@@ -944,6 +1048,7 @@ function hintFor(L, i){
 }
 function useLife(k){
   const q = S.q, u = S.used[q.turn], L = curList();
+  if(q.cd && q.cd.id === 16 && q.cd.team === q.turn){ msg = { k:"no", t:"🃏 بطاقة «بدون وسائل»: ما تقدرون تستخدمون الوسائل بهالسؤال" }; return; }
   if(k === "hint" && u.hint < HINTS){
     q.hints = q.hints || {};
     const i = L.a.findIndex((_, i) => q.got[i] === undefined && !q.hints[i]);   // أشهر جواب باقي ما انعطى له تلميح
@@ -958,13 +1063,14 @@ function useLife(k){
 // ختم الحركة: يزيد مع كل تغيير في اللعب. أمر الحكم اللي معه ختم قديم (ضغطة مكررة أو متأخرة) ينرفض.
 function bump(){ S.seq = (S.seq || 0) + 1; }
 function snap(){
-  U.push(JSON.stringify({ score:S.score, used:S.used, q:S.q, qi:S.qi, screen:S.screen, left, log:S.log, done:S.done, picker:S.picker }));
+  U.push(JSON.stringify({ score:S.score, used:S.used, q:S.q, qi:S.qi, screen:S.screen, left, log:S.log, done:S.done, picker:S.picker, cards:S.cards, pend:S.pend, drew:S.drew, note:S.note }));
   if(U.length > 20) U.shift();
 }
 function undo(){
   if(!U.length) return;
   const s = JSON.parse(U.pop());
   S.score = s.score; S.used = s.used; S.q = s.q; S.qi = s.qi; S.screen = s.screen; if(s.log) S.log = s.log; if(s.done) S.done = s.done; if(s.picker !== undefined) S.picker = s.picker;
+  if(s.cards){ S.cards = s.cards; S.pend = s.pend || null; S.drew = !!s.drew; S.note = s.note || null; }
   bump(); peek = false; stopTimer();
   if(S.screen === "question" && S.q && !S.q.over){ startTimer(); left = s.left; }
   msg = { k:"", t:"رجعنا عن آخر حركة" };
@@ -995,7 +1101,7 @@ function advance(){
   bump();
   if(S.done){                                                        // نظام اللوحة: نرجع للوحة والدور ينقلب
     if(Object.keys(S.done).length >= S.order.length){ S.screen = "end"; return; }
-    S.picker = 1 - S.picker; S.screen = "board"; msg = null; return;
+    S.picker = 1 - S.picker; S.screen = "board"; msg = null; S.drew = false; S.note = null; return;
   }
   S.qi++; if(S.qi >= S.order.length) S.screen = "end"; else startQuestion();
 }
@@ -1015,12 +1121,14 @@ function progress(){
 function publish(){
   if(!canRef()) return;
   const st = { screen:S.screen, names:[TN(0), TN(1)], score:S.score, ref:!!S.ref, seq:S.seq || 0, undo:U.length > 0 };
-  if(S.screen === "board") Object.assign(st, { picker:S.picker, left:boardLeft(), total:S.order.length,
+  if(S.screen === "board") Object.assign(st, { picker:S.picker, left:boardLeft(), total:S.order.length, drew:!!S.drew,
+    cards:(S.cards || []).map(c => c.by === undefined ? {} : { by:c.by, n:CARDS[c.id].n, g:CARDS[c.id].g }),
+    note:S.note ? `«${CARDS[S.note.id].n}» لـ ${S.names[S.note.team]}: ${CARDS[S.note.id].d}` : "", opp:!!(S.pend && S.pend.id === 19),
     cats:[...new Set(S.order.map(o => o.c))].map(id => ({ n:catIcon(cat(id)) + " " + cat(id).name,
       tiles:S.order.map((o, j) => o.c === id ? { i:j, by:S.done[j] } : null).filter(Boolean) })) });
   if(S.screen === "question"){
     const L = curList(), q = S.q;
-    Object.assign(st, { qi:S.qi, total:S.order.length, progress:progress(), title:L.t, turn:q.turn, over:q.over, risk:q.risk, paused:!!q.paused, fresh:!!q.fresh,
+    Object.assign(st, { qi:S.qi, total:S.order.length, progress:progress(), title:L.t, cd:q.cd ? `«${CARDS[q.cd.id].n}» على ${S.names[q.cd.team]}: ${CARDS[q.cd.id].d}` : "", nolife:!!(q.cd && q.cd.id === 16 && q.cd.team === q.turn), turn:q.turn, over:q.over, risk:q.risk, paused:!!q.paused, fresh:!!q.fresh,
       trap: q.risk ? PASS_RISK : hasTraps(L) ? 0 : (TRAPS[q.wrong] || 0),
       traps: hasTraps(L) ? L.x.map((x, i) => ({ n:ansName(x), p:TRAPS[i] || 0, hit:!!(q.traps && q.traps[i]) })) : [],
       life: { hint:HINTS - S.used[q.turn].hint, pass:!S.used[q.turn].pass && !q.risk, dbl:!S.used[q.turn].dbl, dblOn:q.dbl },
@@ -1062,7 +1170,11 @@ function applyCmd(c){
   if(!refOn() || !c || !(S.screen === "question" || S.screen === "board" || (S.screen === "end" && c.t === "undo"))) return;
   if(c.s !== undefined && c.s !== (S.seq || 0)) return;                    // أمر قديم: الحالة تغيّرت من بعد ما انضغط
   if(c.t === "undo"){ undo(); return; }
-  if(S.screen === "board"){ if(c.t === "pick" && Number.isInteger(c.i)){ snap(); pickTile(c.i); } return; }
+  if(S.screen === "board"){
+    if(c.t === "pick" && Number.isInteger(c.i)){ snap(); pickTile(c.i); }
+    else if(c.t === "card" && Number.isInteger(c.i)){ snap(); const s0 = S.seq; drawCard(c.i); if(S.seq === s0) U.pop(); }
+    return;
+  }
   const q = S.q;
   if(q.over){ if(c.t === "next"){ snap(); advance(); } return; }
   if(c.t === "pause"){ togglePause(); return; }
@@ -1155,7 +1267,11 @@ function refApp(){
       <span style="color:${col(1)}">${esc(st.names[1])}: ${fmt(st.score[1])}</span></div>`;
     if(st.screen === "board" && st.ref){
       $app.innerHTML = `<div class="ref">${head}
-        <div class="who" style="color:${col(st.picker)}">${esc(st.names[st.picker])} يختارون</div>
+        <div class="who" style="color:${col(st.picker)}">${esc(st.names[st.picker])} ${st.opp ? "يجاوبون (الخصم يختار لهم)" : "يختارون"}</div>
+        ${(st.cards || []).length ? `<div class="rcat"><div class="rn">🃏 البطاقات السرية${st.drew ? " — انسحبت بطاقة بهالدور" : ""}</div><div class="rt" style="grid-template-columns:repeat(4,minmax(0,1fr))">${st.cards.map((c, k) =>
+          c.by === undefined ? `<button class="tile" ${st.drew ? "disabled" : ""} data-r='{"t":"card","i":${k}}'>؟</button>`
+          : `<button class="tile used u${c.by}" disabled style="font-size:13px">${esc(c.n)}</button>`).join("")}</div>
+          ${st.note ? `<div class="muted" style="margin-top:8px;font-size:14px">${esc(st.note)}</div>` : ""}</div>` : ""}
         <div class="muted" style="text-align:center;margin-bottom:10px">باقي ${fmt(st.left)} من ${fmt(st.total)} — اضغط الفئة والرقم اللي اختاروه</div>
         ${st.cats.map(c => `<div class="rcat"><div class="rn">${esc(c.n)}</div><div class="rt">${c.tiles.map((t, k) =>
           `<button class="tile ${t.by != null ? "used u" + t.by : ""}" ${t.by != null ? "disabled" : ""} data-r='{"t":"pick","i":${t.i}}'>${fmt(k + 1)}</button>`).join("")}</div></div>`).join("")}
@@ -1168,6 +1284,7 @@ function refApp(){
     }
     $app.innerHTML = `<div class="ref">${head}
       <div class="muted" style="text-align:center;margin-top:8px">${esc(st.progress || "")}</div>
+      ${st.cd ? `<div class="rcat" style="margin-top:8px;font-size:14px">🃏 ${esc(st.cd)}</div>` : ""}
       <div class="qtitle" style="margin-bottom:0">${esc(st.title)}</div>
       <div class="who" style="color:${st.over ? "var(--muted)" : col(st.turn)}">${st.over ? "انتهى السؤال" : "الدور: " + esc(st.names[st.turn])}</div>
       <div class="slots" style="grid-template-columns:1fr">
@@ -1237,6 +1354,15 @@ function goldBurst(name, team){
   document.body.appendChild(el); sfx("fan");
   sandBurst(innerWidth / 2, innerHeight / 2, 70);
   setTimeout(() => closeOvl(el), calm() ? 1400 : 1900);
+}
+function cardBurst(id, team){
+  if(REF) return;
+  const C = CARDS[id], old = document.getElementById("cardrev"); if(old) old.remove();
+  const el = document.createElement("div"); el.id = "cardrev"; el.className = "ovl " + (C.g ? "good" : "bad");
+  el.innerHTML = `<div class="in"><small>${C.g ? "بطاقة تفيدكم" : "بطاقة تضركم"}</small><b>${esc(C.n)}</b><span>${esc(C.d)}</span><i>${esc(TN(team))}</i></div>`;
+  el.addEventListener("click", () => closeOvl(el));
+  document.body.appendChild(el);
+  setTimeout(() => closeOvl(el), calm() ? 2200 : 2800);
 }
 // وضع العرض: لو شاشة الإعداد واقفة دقيقة بدون لمس، تلعب سؤال تجريبي لحالها وتكشف أجوبته
 let lastAct = Date.now(), demoT = null;
@@ -1370,6 +1496,7 @@ $app.addEventListener("click", e => {
   else if(d.act === "sound"){ sound = !sound; try{ localStorage.setItem(SKEY, sound ? "1" : "0"); }catch(e){} if(sound){ audio(); sfx("tick"); } }
   else if(d.act === "card"){ makeCard(); return; }
   else if(d.tile !== undefined){ snap(); pickTile(+d.tile); }
+  else if(d.card !== undefined){ snap(); const s0 = S.seq; drawCard(+d.card); if(S.seq === s0) U.pop(); }
   else if(d.act === "undo") undo();
   else if(d.act === "pause") togglePause();
   else if(d.act === "refoff"){ S.ref = false; showQR = false; msg = { k:"", t:"كمّلتوا بدون حكم — الأجوبة تنكتب من الشاشة" }; }
